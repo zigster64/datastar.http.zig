@@ -11,63 +11,78 @@
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 
-<body class="bg-base-100">
+<body class="bg-cyan-700">
   <!-- Navbar -->
 
-  <div class="navbar bg-base-200 shadow-md fixed top-0 left-0 right-0 z-50">
-    <div class="flex-1">
-      <a class="btn btn-ghost text-xl">DataStar Basic Operations Example</a>
+  <div
+    class="navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <span class="btn btn-ghost text-xl text-white">DataStar Basic Operations Example</span>
+      <img class="w-12 sm:w-24"
+        src="http://data-star.dev/static/images/rocket-304e710dde0b42b15673e10937623789adf72cae569c0e0defe7ec21c0bdf293.webp">
+    </div>
+    <div class="avatar">
+      <div class="w-32 rounded-full">
+        <img src="https://avatars.githubusercontent.com/u/72305366?v=4">
+      </div>
     </div>
   </div>
 
-  <section class="mt-40">
+  <section class="mt-32">
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-3 gap-4">
       <div class="p-4">
-        <div class="card w-96 bg-base-100 card-lg shadow-sm">
+        <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="">
           <div class="card-body">
-            <h2 class="card-title">MergeFragments</h2>
+            <h2 class="card-title">MergeFragments Simple</h2>
             <p id="mf-merge">Click the button to use MergeFragments to update this content using <i>.morph</i></p>
-            <div id="Mode Select" data-signals='{"make":"","model":""}'>
-              <div>Pick a Make / Model</div>
-              <select data-bind="make" data-on-change="@get('/examples/value_select/data')">
-                <option disabled>Select a Make</option>
-                <option value="HYAABHANLTMQC">Audi</option>
-                <option value="HZAABHANLTMQC">Toyota</option>
-                <option value="H2AABHANLTMQC">Ford</option>
-              </select>
-            </div>
-            <select class="select">
-              <option disabled selected>Pick a color</option>
-              <option>Crimson</option>
-              <option>Amber</option>
-              <option>Velvet</option>
-            </select>
             <div class="justify-end card-actions">
-              <button class="btn btn-primary" data-on-click="@get('/merge?mode=morph&id=mf-merge')">Merge
+              <button class="btn btn-primary" data-on-click="@get('/merge')">Merge
                 Morph</button>
             </div>
           </div>
         </div>
       </div>
       <div class="p-4">
-        <div class="card">
-          <h1 class="text-2xl">RemoveFragments</h1>
+        <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="">
+          <div class="card-body">
+            <h2 class="card-title" id="rm-card">Remove Fragments</h2>
+            <p id="rm-text">Click the button to use RemoveFragments to delete the error message</p>
+            <div id="remove-me">
+              <p class="border-4 border-error">Lets get rid of this ugly DOM element</p>
+              <div class="justify-end card-actions">
+                <button class="btn btn-error" data-on-click="@get('/remove')">Remove It !</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="p-4">
-        <div class="card">
-          <h1 class="text-2xl">MergeSignals</h1>
-        </div>
-      </div>
-      <div class="p-4">
-        <div class="card">
-          <h1 class="text-2xl">RemoveSignals</h1>
-        </div>
-      </div>
-      <div class="p-4 col-span-2">
-        <div class="card">
-          <h1 class="text-2xl">Exec Script</h1>
+        <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
+          <div class="card-body" id="merge-fragment-card">
+            <h2 class="card-title">MergeFragments Options</h2>
+            <p id="mf-merge-opts" class="border-1">Click the button to use MergeFragments to update this content using
+              different options</p>
+            <p>Select Morph Options</p>
+            <div class="grid-cols-2">
+              <div>
+                <select data-bind-morph>
+                  <option value="inner">Inner HTML</option>
+                  <option value="outer">Outer HTML</option>
+                  <option value="prepend">Prepend Child</option>
+                  <option value="append">Append Child</option>
+                  <option value="before">Before Sibling</option>
+                  <option value="after">After Sibling</option>
+                </select>
+              </div>
+              <pre class="border" data-text="ctx.signals.JSON()">Signals</pre>
+            </div>
+            <div class="justify-end card-actions">
+              <button class="btn btn-warning" data-on-click="@get('/merge/opts/reset')">Reset</button>
+              <button class="btn btn-primary" data-on-click="@get('/merge/opts')">Merge
+                With Options</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

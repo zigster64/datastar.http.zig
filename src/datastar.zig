@@ -18,7 +18,7 @@ pub const MergeType = enum {
 };
 
 pub const MergeFragmentsOptions = struct {
-    mode: MergeType = .morph,
+    merge_type: MergeType = .morph,
     selector: ?[]const u8 = null,
     view_transition: bool = false,
 };
@@ -33,6 +33,11 @@ pub fn mergeFragmentsOpt(stream: std.net.Stream, opt: MergeFragmentsOptions) Mes
     return Message.init(stream, .mergeFragments, opt);
 }
 
+pub fn removeFragments(stream: std.net.Stream, selector: []const u8) !void {
+    const w = stream.writer();
+    try w.print("event: datastar-remove-fragments\ndata: selector {s}\n\n", .{selector});
+}
+
 pub const Message = struct {
     stream: std.net.Stream,
     started: bool = false,
@@ -45,12 +50,13 @@ pub const Message = struct {
         write,
     );
 
-    pub fn init(stream: std.net.Stream, command: Command, opt: anytype) Message {
+    pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype) Message {
         var m = Message{ .stream = stream };
         switch (command) {
             .mergeFragments => {
                 m.merge_options = opt;
             },
+            .removeFragments => @compileError("Cant create message of type RemoveFragments - use helper function instead"),
             else => {},
         }
         return m;
@@ -68,7 +74,7 @@ pub const Message = struct {
     pub fn end(self: *Message) void {
         if (self.started) {
             self.started = false;
-            self.stream.writer().writeAll("\n\n\n") catch return;
+            self.stream.writer().writeAll("\n\n") catch return;
         }
     }
 
@@ -80,14 +86,17 @@ pub const Message = struct {
                 if (self.merge_options.selector) |s| {
                     try w.print("data: selector {s}\n", .{s});
                 }
-                if (self.merge_options.mode != .morph) {
-                    try w.print("data: mergeMode {s}\n", .{@tagName(self.merge_options.mode)});
-                }
+                const mt = self.merge_options.merge_type;
+                if (mt != .morph) {
+                    try w.print("data: mergeMode {s}\n", .{@tagName(mt)});
+                    std.debug.print("adding mergeMode {s}\n", .{@tagName(mt)});
+                } // no modes specified - will default to "morph" using idiomoph
             },
             .mergeSignals => try w.writeAll("event: datastar-merge-signals\n"),
-            .removeFragments => try w.writeAll("event: datastar-remove-fragments\n"),
+            // .removeFragments => try w.writeAll("event: datastar-remove-fragments\n"),
             .removeSignals => try w.writeAll("event: datastar-remove-signals\n"),
             .executeScript => try w.writeAll("event: datastar-execute-script\n"),
+            else => {},
         }
         self.started = true;
     }
@@ -105,9 +114,10 @@ pub const Message = struct {
                     switch (self.command) {
                         .mergeFragments => "fragments",
                         .mergeSignals => "signals",
-                        .removeFragments => "selector",
+                        // .removeFragments => "selector",
                         .removeSignals => "paths",
                         .executeScript => "script",
+                        else => "",
                     },
                     bytes[start..i],
                 });
@@ -120,9 +130,10 @@ pub const Message = struct {
                 switch (self.command) {
                     .mergeFragments => "fragments",
                     .mergeSignals => "signals",
-                    .removeFragments => "selector",
+                    // .removeFragments => "selector",
                     .removeSignals => "paths",
                     .executeScript => "script",
+                    else => "",
                 },
                 bytes[start..],
             });

@@ -13,6 +13,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    const httpz_module = b.dependency("httpz", dep_opts);
+    datastar_httpz_module.addImport("httpz", httpz_module.module("httpz"));
+
     const tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/datastar.zig"),
@@ -50,7 +53,6 @@ pub fn build(b: *std.Build) void {
             exe.root_module.addImport("datastar.httpz", datastar_httpz_module);
 
             // add some 3rd party deps to get the app working
-            const httpz_module = b.dependency("httpz", dep_opts);
             exe.root_module.addImport("httpz", httpz_module.module("httpz"));
 
             const logz_module = b.dependency("logz", dep_opts);
