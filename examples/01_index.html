@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="napoleon">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zig DataStar Streaming API</title>
+  <script type="module"
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<body class="bg-base-100">
+  <!-- Navbar -->
+
+  <div class="navbar bg-base-200 shadow-md fixed top-0 left-0 right-0 z-50">
+    <div class="flex-1">
+      <a class="btn btn-ghost text-xl">DataStar Basic Operations Example</a>
+    </div>
+  </div>
+
+  <section class="mt-40">
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="p-4">
+        <div class="card w-96 bg-base-100 card-lg shadow-sm">
+          <div class="card-body">
+            <h2 class="card-title">MergeFragments</h2>
+            <p id="mf-merge">Click the button to use MergeFragments to update this content using <i>.morph</i></p>
+            <div id="Mode Select" data-signals='{"make":"","model":""}'>
+              <div>Pick a Make / Model</div>
+              <select data-bind="make" data-on-change="@get('/examples/value_select/data')">
+                <option disabled>Select a Make</option>
+                <option value="HYAABHANLTMQC">Audi</option>
+                <option value="HZAABHANLTMQC">Toyota</option>
+                <option value="H2AABHANLTMQC">Ford</option>
+              </select>
+            </div>
+            <select class="select">
+              <option disabled selected>Pick a color</option>
+              <option>Crimson</option>
+              <option>Amber</option>
+              <option>Velvet</option>
+            </select>
+            <div class="justify-end card-actions">
+              <button class="btn btn-primary" data-on-click="@get('/merge?mode=morph&id=mf-merge')">Merge
+                Morph</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card">
+          <h1 class="text-2xl">RemoveFragments</h1>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card">
+          <h1 class="text-2xl">MergeSignals</h1>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card">
+          <h1 class="text-2xl">RemoveSignals</h1>
+        </div>
+      </div>
+      <div class="p-4 col-span-2">
+        <div class="card">
+          <h1 class="text-2xl">Exec Script</h1>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative" <!-- Your real content goes here -->
+      <div class="relative z-10">
+        <div class="flex-col items-start">
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</body>
+
+</html>
