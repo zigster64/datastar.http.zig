@@ -17,6 +17,7 @@ pub fn main() !void {
 
     var server = try httpz.Server(void).init(allocator, .{
         .port = PORT,
+        .address = "0.0.0.0",
     }, {});
     defer server.deinit();
     defer server.stop();
