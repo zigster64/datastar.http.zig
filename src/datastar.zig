@@ -37,11 +37,10 @@ pub fn removeFragments(stream: std.net.Stream, selector: []const u8) !void {
     try w.print("event: datastar-remove-fragments\ndata: selector {s}\n\n", .{selector});
 }
 
-pub fn upsertAttributes(stream: std.net.Stream, selector: []const u8, attribs: []const u8) !void {
-    const w = stream.writer();
-    try w.print("event: datastar-merge-fragments\ndata: selector {s}\ndata: mergeMode upsertAttributes\ndata: fragments {s}\n\n", .{
-        selector,
-        attribs,
+pub fn upsertAttributes(stream: std.net.Stream, selector: []const u8) Message {
+    return Message.init(stream, .mergeFragments, MergeFragmentsOptions{
+        .merge_type = .upsertAttributes,
+        .selector = selector,
     });
 }
 
@@ -51,6 +50,7 @@ pub const Message = struct {
     command: Command = .mergeFragments,
     merge_options: MergeFragmentsOptions = .{},
     only_if_missing: bool = false,
+    line_in_progress: bool = false,
 
     const Writer = std.io.Writer(
         *Message,
@@ -94,9 +94,10 @@ pub const Message = struct {
                     try w.print("data: selector {s}\n", .{s});
                 }
                 const mt = self.merge_options.merge_type;
-                if (mt != .morph) {
-                    try w.print("data: mergeMode {s}\n", .{@tagName(mt)});
-                } // no modes specified - will default to "morph" using idiomoph
+                switch (mt) {
+                    .morph => {},
+                    else => try w.print("data: mergeMode {s}\n", .{@tagName(mt)}),
+                }
             },
             .mergeSignals => try w.writeAll("event: datastar-merge-signals\n"),
             .removeSignals => try w.writeAll("event: datastar-remove-signals\n"),
@@ -128,15 +129,23 @@ pub const Message = struct {
         }
 
         if (start < bytes.len) {
-            try self.stream.writer().print("data: {s} {s}\n", .{
-                switch (self.command) {
-                    .mergeFragments => "fragments",
-                    .mergeSignals => "signals",
-                    .removeSignals => "paths",
-                    .executeScript => "script",
-                },
-                bytes[start..],
-            });
+            if (self.line_in_progress) {
+                try self.stream.writer().print("{s}", .{
+                    bytes[start..],
+                });
+            } else {
+                // is a completely new line
+                try self.stream.writer().print("data: {s} {s}", .{
+                    switch (self.command) {
+                        .mergeFragments => "fragments",
+                        .mergeSignals => "signals",
+                        .removeSignals => "paths",
+                        .executeScript => "script",
+                    },
+                    bytes[start..],
+                });
+                self.line_in_progress = true;
+            }
         }
 
         return bytes.len;
