@@ -54,6 +54,7 @@ pub fn main() !void {
     router.get("/merge/opts/reset", mergeFragmentsOptsReset, .{});
     router.get("/remove", removeFragments, .{});
     router.get("/remove/restore", removeFragmentsRestore, .{});
+    router.get("/upsert/attributes", upsertAttributes, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     try server.listen();
@@ -86,7 +87,7 @@ fn mergeFragments(_: *httpz.Request, res: *httpz.Response) !void {
     incUpdateCount();
 
     const t2 = std.time.microTimestamp();
-    logz.info().src(@src()).string("event", "mergeFragments").int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "mergeFragments").int("elapsed (μs)", t2 - t1).log();
 }
 
 // create a mergeFragments stream, which will write commands over the SSE connection
@@ -124,7 +125,7 @@ fn mergeFragmentsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     var msg = datastar.mergeFragmentsOpt(stream, .{
-        .selector = "#md-merge-opts",
+        .selector = "#mf-merge-opts",
         .merge_type = merge_type,
     });
     defer msg.end();
@@ -145,7 +146,7 @@ fn mergeFragmentsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     const t2 = std.time.microTimestamp();
-    logz.info().src(@src()).string("event", "mergeFragmentsOpts").int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "mergeFragmentsOpts").int("elapsed (μs)", t2 - t1).log();
 }
 
 // Just reset the options form if it gets ugly
@@ -167,7 +168,7 @@ fn mergeFragmentsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
     try w.writeAll(@embedFile("01_index_opts.html"));
 
     const t2 = std.time.microTimestamp();
-    logz.info().src(@src()).string("event", "mergeFragmentsOptsReset").int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "mergeFragmentsOptsReset").int("elapsed (μs)", t2 - t1).log();
 }
 
 fn removeFragments(_: *httpz.Request, res: *httpz.Response) !void {
@@ -193,7 +194,7 @@ fn removeFragments(_: *httpz.Request, res: *httpz.Response) !void {
         \\  <button id="rm-restore" class="btn btn-warning" data-on-click="@get('/remove/restore')">Put the Ugly thing Back !</button>
     );
     const t2 = std.time.microTimestamp();
-    logz.info().src(@src()).string("event", "removeFragments").int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "removeFragments").int("elapsed (μs)", t2 - t1).log();
 }
 
 fn removeFragmentsRestore(_: *httpz.Request, res: *httpz.Response) !void {
@@ -220,5 +221,31 @@ fn removeFragmentsRestore(_: *httpz.Request, res: *httpz.Response) !void {
         \\ </div>
     );
     const t2 = std.time.microTimestamp();
-    logz.info().src(@src()).string("event", "removeFragmentsRestore").int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "removeFragmentsRestore").int("elapsed (μs)", t2 - t1).log();
+}
+
+fn upsertAttributes(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
+    // these are short lived updates so we close the request as soon as its done
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    var prng = std.Random.DefaultPrng.init(blk: {
+        var seed: u64 = undefined;
+        try std.posix.getrandom(std.mem.asBytes(&seed));
+        break :blk seed;
+    });
+    const rand = prng.random();
+    const color = rand.intRangeAtMost(u8, 0, 9);
+    var buffer: [100]u8 = undefined;
+
+    const new_bg_color = try std.fmt.bufPrint(&buffer,
+        \\ <div class="bg-violet-{d}00" id="color-change">
+    , .{color});
+
+    try datastar.upsertAttributes(stream, "#color-change", new_bg_color);
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "upsertAttributes").string("color", new_bg_color).int("elapsed (μs)", t2 - t1).log();
 }

@@ -38,6 +38,14 @@ pub fn removeFragments(stream: std.net.Stream, selector: []const u8) !void {
     try w.print("event: datastar-remove-fragments\ndata: selector {s}\n\n", .{selector});
 }
 
+pub fn upsertAttributes(stream: std.net.Stream, selector: []const u8, attribs: []const u8) !void {
+    const w = stream.writer();
+    try w.print("event: datastar-merge-fragments\ndata: selector {s}\ndata: mergeMode upsertAttributes\ndata: fragments {s}\n\n", .{
+        selector,
+        attribs,
+    });
+}
+
 pub const Message = struct {
     stream: std.net.Stream,
     started: bool = false,

@@ -17,7 +17,8 @@
   <div
     class="navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center justify-between">
     <div class="flex items-center gap-4">
-      <span class="btn btn-ghost text-xl text-white">DataStar Basic Operations Example</span>
+      <span class="btn btn-ghost text-xl text-white block md:hidden">DataStar Basic Ops</span>
+      <span class="btn btn-ghost text-xl text-white hidden md:block">DataStar Basic Operations Example</span>
       <a href="http://data-star.dev" target="_">
         <img class="w-12 sm:w-24"
           src="http://data-star.dev/static/images/rocket-304e710dde0b42b15673e10937623789adf72cae569c0e0defe7ec21c0bdf293.webp">
@@ -34,7 +35,7 @@
 
   <section class="mt-32">
 
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
       <div class="p-4">
         <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="">
           <div class="card-body">
@@ -57,6 +58,17 @@
               <div class="justify-end card-actions">
                 <button class="btn btn-error" data-on-click="@get('/remove')">Remove It !</button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card w-96 bg-slate-300 card-lg shadow-sm" id="color-change">
+          <div class="card-body">
+            <h2 class="card-title">UpsertAttributes</h2>
+            <p>Click the button to change the background color</p>
+            <div class="justify-end card-actions">
+              <button class="btn btn-accent" data-on-click="@get('/upsert/attributes')">Change It !</button>
             </div>
           </div>
         </div>
