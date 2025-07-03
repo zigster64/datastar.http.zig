@@ -6,6 +6,15 @@ const Allocator = std.mem.Allocator;
 
 const PORT = 8081;
 
+var update_count: usize = 1;
+var update_mutex: std.Thread.Mutex = .{};
+
+fn incUpdateCount() void {
+    update_mutex.lock();
+    update_count += 1;
+    update_mutex.unlock();
+}
+
 // This example demonstrates basic DataStar operations
 // MergeFragments / RemoveFragments
 // MergeSignals / RemoveSignals
@@ -19,8 +28,11 @@ pub fn main() !void {
         .port = PORT,
         .address = "0.0.0.0",
     }, {});
-    defer server.deinit();
-    defer server.stop();
+    defer {
+        // clean shutdown
+        server.stop();
+        server.deinit();
+    }
 
     // initialize a logging pool
     try logz.setup(allocator, .{
@@ -51,8 +63,6 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
     res.body = @embedFile("01_index.html");
 }
 
-var update_count: usize = 1;
-
 // create a mergeFragments stream, which will write commands over the SSE connection
 // to update parts of the DOM. It will look for the DOM with the matching ID in the default case
 //
@@ -67,12 +77,13 @@ fn mergeFragments(_: *httpz.Request, res: *httpz.Response) !void {
     defer stream.close();
 
     var msg = datastar.mergeFragments(stream);
-    var w = msg.writer();
     defer msg.end();
+
+    var w = msg.writer();
     try w.print(
         \\ <p id="mf-merge">This is update number {d}</p>
     , .{update_count});
-    update_count += 1;
+    incUpdateCount();
 
     const t2 = std.time.microTimestamp();
     logz.info().src(@src()).string("event", "mergeFragments").int("elapsed (μs)", t2 - t1).log();
@@ -100,26 +111,26 @@ fn mergeFragmentsOpts(req: *httpz.Request, res: *httpz.Response) !void {
 
     // read the signals to work out which options to set, checking the name of the
     // option vs the enum values, and add them relative to the mf-merge-opt item
-    var opt: datastar.MergeFragmentsOptions = .{
-        .selector = "#mf-merge-opts",
-    };
-    for (std.enums.values(datastar.MergeType)) |merge_type| {
-        if (std.mem.eql(u8, @tagName(merge_type), signals.morph)) {
-            std.debug.print("set mergeType option {}\n", .{merge_type});
-            opt.merge_type = merge_type;
+    var merge_type: datastar.MergeType = .morph;
+    for (std.enums.values(datastar.MergeType)) |mt| {
+        if (std.mem.eql(u8, @tagName(mt), signals.morph)) {
+            merge_type = mt;
             break; // can only have 1 merge type
         }
     }
 
-    if (opt.merge_type == .morph) {
-        return;
+    if (merge_type == .morph) {
+        return; // dont do morphs - its not relevant to this demo card
     }
 
-    var msg = datastar.mergeFragmentsOpt(stream, opt);
-    var w = msg.writer();
+    var msg = datastar.mergeFragmentsOpt(stream, .{
+        .selector = "#md-merge-opts",
+        .merge_type = merge_type,
+    });
     defer msg.end();
 
-    switch (opt.merge_type) {
+    var w = msg.writer();
+    switch (merge_type) {
         .outer => {
             try w.writeAll(
                 \\ <p id="mf-merge-opts" class="border-4 border-error">Complete Replacement of the OUTER HTML</p>
@@ -129,7 +140,7 @@ fn mergeFragmentsOpts(req: *httpz.Request, res: *httpz.Response) !void {
             try w.print(
                 \\ <p>This is update number {d}</p>
             , .{update_count});
-            update_count += 1;
+            incUpdateCount();
         },
     }
 
@@ -150,9 +161,9 @@ fn mergeFragmentsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
     var msg = datastar.mergeFragmentsOpt(stream, .{
         .selector = "#merge-fragment-card",
     });
-    var w = msg.writer();
     defer msg.end();
 
+    var w = msg.writer();
     try w.writeAll(@embedFile("01_index_opts.html"));
 
     const t2 = std.time.microTimestamp();
@@ -175,9 +186,9 @@ fn removeFragments(_: *httpz.Request, res: *httpz.Response) !void {
         .selector = "#rm-card",
         .merge_type = .append,
     });
-    var w = msg.writer();
     defer msg.end();
 
+    var w = msg.writer();
     try w.writeAll(
         \\  <button id="rm-restore" class="btn btn-warning" data-on-click="@get('/remove/restore')">Put the Ugly thing Back !</button>
     );
@@ -197,9 +208,9 @@ fn removeFragmentsRestore(_: *httpz.Request, res: *httpz.Response) !void {
         .selector = "#rm-text",
         .merge_type = .after,
     });
-    var w = msg.writer();
     defer msg.end();
 
+    var w = msg.writer();
     try w.writeAll(
         \\ <div id="remove-me">
         \\   <p class="border-4 border-error">Lets get rid of this ugly DOM element</p>
