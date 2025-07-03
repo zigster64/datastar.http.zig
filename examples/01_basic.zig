@@ -57,6 +57,7 @@ pub fn main() !void {
     router.get("/upsert/attributes", upsertAttributes, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
+    std.debug.print("... or any other IP address pointing to this machine\n", .{});
     try server.listen();
 }
 

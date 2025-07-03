@@ -1,7 +1,6 @@
 pub const Command = enum {
     mergeFragments,
     mergeSignals,
-    removeFragments,
     removeSignals,
     executeScript,
 };
@@ -51,6 +50,7 @@ pub const Message = struct {
     started: bool = false,
     command: Command = .mergeFragments,
     merge_options: MergeFragmentsOptions = .{},
+    only_if_missing: bool = false,
 
     const Writer = std.io.Writer(
         *Message,
@@ -64,7 +64,6 @@ pub const Message = struct {
             .mergeFragments => {
                 m.merge_options = opt;
             },
-            .removeFragments => @compileError("Cant create message of type RemoveFragments - use helper function instead"),
             else => {},
         }
         return m;
@@ -97,14 +96,11 @@ pub const Message = struct {
                 const mt = self.merge_options.merge_type;
                 if (mt != .morph) {
                     try w.print("data: mergeMode {s}\n", .{@tagName(mt)});
-                    std.debug.print("adding mergeMode {s}\n", .{@tagName(mt)});
                 } // no modes specified - will default to "morph" using idiomoph
             },
             .mergeSignals => try w.writeAll("event: datastar-merge-signals\n"),
-            // .removeFragments => try w.writeAll("event: datastar-remove-fragments\n"),
             .removeSignals => try w.writeAll("event: datastar-remove-signals\n"),
             .executeScript => try w.writeAll("event: datastar-execute-script\n"),
-            else => {},
         }
         self.started = true;
     }
@@ -122,10 +118,8 @@ pub const Message = struct {
                     switch (self.command) {
                         .mergeFragments => "fragments",
                         .mergeSignals => "signals",
-                        // .removeFragments => "selector",
                         .removeSignals => "paths",
                         .executeScript => "script",
-                        else => "",
                     },
                     bytes[start..i],
                 });
@@ -138,10 +132,8 @@ pub const Message = struct {
                 switch (self.command) {
                     .mergeFragments => "fragments",
                     .mergeSignals => "signals",
-                    // .removeFragments => "selector",
                     .removeSignals => "paths",
                     .executeScript => "script",
-                    else => "",
                 },
                 bytes[start..],
             });
