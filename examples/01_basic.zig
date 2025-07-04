@@ -63,6 +63,7 @@ pub fn main() !void {
     router.get("/merge/signals", mergeSignals, .{});
     router.get("/merge/signals/onlymissing", mergeSignalsOnlyIfMissing, .{});
     router.get("/merge/signals/remove", removeSignals, .{});
+    router.get("/executescript/:sample", executeScript, .{});
 
     router.get("/code/:snip", code, .{});
 
@@ -316,6 +317,7 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code5.zig"),
     @embedFile("snippets/code6.zig"),
     @embedFile("snippets/code7.zig"),
+    @embedFile("snippets/code8.zig"),
 };
 
 fn code(req: *httpz.Request, res: *httpz.Response) !void {
@@ -352,4 +354,19 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
         }
         try w.writeAll("</code></pre>\n");
     }
+}
+fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
+    const sample = req.param("sample").?;
+    const sample_id = try std.fmt.parseInt(u8, sample, 10);
+
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    var msg = datastar.executeScript(stream);
+    defer msg.end();
+
+    const script_data = if (sample_id == 1) "console.log('Running from executescript!');" else "const parent = document.querySelector('#executescript-card');\n console.log(parent.outerHTML);";
+
+    var w = msg.writer();
+    try w.writeAll(script_data);
 }

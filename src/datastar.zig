@@ -40,6 +40,10 @@ pub fn mergeSignalsIfMissing(stream: std.net.Stream) Message {
     return Message.init(stream, .mergeSignals, true);
 }
 
+pub fn executeScript(stream: std.net.Stream) Message {
+    return Message.init(stream, .executeScript, false);
+}
+
 pub fn removeFragments(stream: std.net.Stream, selector: []const u8) !void {
     const w = stream.writer();
     try w.print("event: datastar-remove-fragments\ndata: selector {s}\n\n", .{selector});
