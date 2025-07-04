@@ -11,10 +11,13 @@ var update_mutex: std.Thread.Mutex = .{};
 
 var prng = std.Random.DefaultPrng.init(0);
 
-fn incUpdateCount() void {
+fn getCountAndIncrement() usize {
     update_mutex.lock();
-    update_count += 1;
-    update_mutex.unlock();
+    defer {
+        update_count += 1;
+        update_mutex.unlock();
+    }
+    return update_count;
 }
 
 // This example demonstrates basic DataStar operations
@@ -61,7 +64,7 @@ pub fn main() !void {
     router.get("/merge/signals/onlymissing", mergeSignalsOnlyIfMissing, .{});
     router.get("/merge/signals/remove", removeSignals, .{});
 
-    router.get("/code", code, .{});
+    router.get("/code/:snip", code, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     std.debug.print("... or any other IP address pointing to this machine\n", .{});
@@ -91,8 +94,7 @@ fn mergeFragments(_: *httpz.Request, res: *httpz.Response) !void {
     var w = msg.writer();
     try w.print(
         \\<p id="mf-merge">This is update number {d}</p>
-    , .{update_count});
-    incUpdateCount();
+    , .{getCountAndIncrement()});
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "mergeFragments").int("elapsed (μs)", t2 - t1).log();
@@ -152,8 +154,7 @@ fn mergeFragmentsOpts(req: *httpz.Request, res: *httpz.Response) !void {
         else => {
             try w.print(
                 \\<p>This is update number {d}</p>
-            , .{update_count});
-            incUpdateCount();
+            , .{getCountAndIncrement()});
         },
     }
 
@@ -307,28 +308,32 @@ fn mergeSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
 
 fn removeSignals(_: *httpz.Request, _: *httpz.Response) !void {}
 
+const snippets = [_][]const u8{
+    @embedFile("snippets/code1.zig"),
+    @embedFile("snippets/code2.zig"),
+    @embedFile("snippets/code3.zig"),
+    @embedFile("snippets/code4.zig"),
+    @embedFile("snippets/code5.zig"),
+    @embedFile("snippets/code6.zig"),
+    @embedFile("snippets/code7.zig"),
+};
 
-const snippets: [_][]const u8 = {
-@embedFile("snippets/code1.zig"),
-@embedFile("snippets/code2.zig"),
-@embedFile("snippets/code3.zig"),
-@embedFile("snippets/code4.zig"),
-@embedFile("snippets/code5.zig"),
-@embedFile("snippets/code6.zig"),
-@embedFile("snippets/code7.zig"),
-}
+fn code(req: *httpz.Request, res: *httpz.Response) !void {
+    const snip = req.param("snip").?;
+    const snip_id = try std.fmt.parseInt(u8, snip, 10);
 
-fn code(_: *httpz.Request, res: *httpz.Response) !void {
-    const data = @embedFile("snippets/code1.zig");
+    if (snip_id < 1 or snip_id > snippets.len) {
+        return error.InvalidCodeSnippet;
+    }
 
-            const query = try req.query();
-    const snip = query.get("s") orelse return error.MissingSnippetKey;
-
+    const data = snippets[snip_id - 1];
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
+    var buf: [1024]u8 = undefined;
+    const selector = try std.fmt.bufPrint(&buf, "#code-{s}", .{snip});
     var msg = datastar.mergeFragmentsOpt(stream, .{
-        .selector = "#code-1",
+        .selector = selector,
         .merge_type = .append,
     });
     defer msg.end();
@@ -338,11 +343,11 @@ fn code(_: *httpz.Request, res: *httpz.Response) !void {
     var it = std.mem.splitAny(u8, data, "\n");
     while (it.next()) |line| {
         try w.writeAll("<pre><code>");
-        for (line) |b| {
-            switch (b) {
+        for (line) |c| {
+            switch (c) {
                 '<' => try w.writeAll("&lt;"),
                 '>' => try w.writeAll("&gt;"),
-                else => try w.writeByte(b),
+                else => try w.writeByte(c),
             }
         }
         try w.writeAll("</code></pre>\n");

@@ -43,7 +43,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
       <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
           <div class="card-body">
             <h2 class="card-title">MergeFragments Simple</h2>
             <p id="mf-merge">Click the button to use MergeFragments to update this content using <i>.morph</i></p>
@@ -54,46 +54,10 @@
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code')">
+            <div class="collapse-content text-sm" data-on-load="@get('/code/1')">
               <div id='code-1' class='mockup-code w-full'></div>
+            </div>
           </details>
-        </div>
-      </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="">
-          <div class="card-body">
-            <h2 class="card-title" id="rm-card">Remove Fragments</h2>
-            <p id="rm-text">Click the button to use RemoveFragments to delete the error message</p>
-            <div id="remove-me">
-              <p class="border-4 border-error">Lets get rid of this ugly DOM element</p>
-              <div class="justify-end card-actions">
-                <button class="btn btn-error" data-on-click="@get('/remove')">Remove It !</button>
-              </div>
-            </div>
-            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
-              <div class="collapse-title font-semibold">Show Code</div>
-              <div class="mockup-code w-full collapse-content text-sm">
-                <pre><code id="code2"></code></pre>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" id="color-change">
-          <div class="card-body">
-            <h2 class="card-title">UpsertAttributes</h2>
-            <p>Click the button to change the background color</p>
-            <div class="justify-end card-actions">
-              <button class="btn btn-accent" data-on-click="@get('/upsert/attributes')">Change It !</button>
-            </div>
-            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
-              <div class="collapse-title font-semibold">Show Code</div>
-              <div class="mockup-code w-full collapse-content text-sm">
-                <pre><code id="code3"></code></pre>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
       <div class="p-4">
@@ -114,25 +78,61 @@
                   <option value="after">After Sibling</option>
                 </select>
               </div>
-              <pre class="border" data-text="ctx.signals.JSON()">Signals</pre>
             </div>
             <div class="justify-end card-actions">
               <button class="btn btn-warning" data-on-click="@get('/merge/opts/reset')">Reset</button>
               <button class="btn btn-primary" data-on-click="@get('/merge/opts')">Merge
                 With Options</button>
             </div>
-            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
-              <div class="collapse-title font-semibold">Show Code</div>
-              <div class="mockup-code w-full collapse-content text-sm">
-                <pre><code id="code4"></code></pre>
+            <details class="collapse bg-base-100 border-base-300 border">
+              <summary class="collapse-title font-semibold">Show Code</summary>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/2')">
+                <div id='code-2' class='mockup-code w-full'></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+          <div class="card-body">
+            <h2 class="card-title" id="rm-card">Remove Fragments</h2>
+            <p id="rm-text">Click the button to use RemoveFragments to delete the error message</p>
+            <div id="remove-me">
+              <p class="border-4 border-error">Lets get rid of this ugly DOM element</p>
+              <div class="justify-end card-actions">
+                <button class="btn btn-error" data-on-click="@get('/remove')">Remove It !</button>
               </div>
             </div>
+            <details class="collapse bg-base-100 border-base-300 border">
+              <summary class="collapse-title font-semibold">Show Code</summary>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/3')">
+                <div id='code-3' class='mockup-code w-full'></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" id="color-change">
+          <div class="card-body">
+            <h2 class="card-title">UpsertAttributes</h2>
+            <p>Click the button to change the background color</p>
+            <div class="justify-end card-actions">
+              <button class="btn btn-accent" data-on-click="@get('/upsert/attributes')">Change It !</button>
+            </div>
+            <details class="collapse bg-base-100 border-base-300 border">
+              <summary class="collapse-title font-semibold">Show Code</summary>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/4')">
+                <div id='code-4' class='mockup-code w-full'></div>
+              </div>
+            </details>
           </div>
         </div>
       </div>
       <div class="p-4">
         <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{}">
-          <div class="card-body" id="merge-fragment-card">
+          <div class="card-body">
             <h2 class="card-title">Merge Signals</h2>
             <p class="border-1">Click the button to use MergeSignals to update the signals on the
               card</p>
@@ -141,18 +141,18 @@
             <div class="justify-end card-actions">
               <button class="btn btn-primary" data-on-click="@get('/merge/signals')">Merge Signals</button>
             </div>
-            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
-              <div class="collapse-title font-semibold">Show Code</div>
-              <div class="mockup-code w-full collapse-content text-sm">
-                <pre><code id="code5"></code></pre>
+            <details class="collapse bg-base-100 border-base-300 border">
+              <summary class="collapse-title font-semibold">Show Code</summary>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/5')">
+                <div id='code-5' class='mockup-code w-full'></div>
               </div>
-            </div>
+            </details>
           </div>
         </div>
       </div>
       <div class="p-4">
         <div class="card w-128 bg-slate-300 card-lg shadow-sm">
-          <div class="card-body" id="merge-fragment-card">
+          <div class="card-body">
             <h2 class="card-title">Merge Signals - only if missing</h2>
             <p class="border-1">Click the button to use MergeSignals to update the signals on the
               card, but only ones that are missing, so initially thats just 'bar', then nothing updates after that</p>
@@ -162,33 +162,33 @@
               <button class="btn btn-primary" data-on-click="@get('/merge/signals/onlymissing')">Merge Signals if
                 Missing</button>
             </div>
-            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
-              <div class="collapse-title font-semibold">Show Code</div>
-              <div class="mockup-code w-full collapse-content text-sm">
-                <pre><code id="code6"></code></pre>
+            <details class="collapse bg-base-100 border-base-300 border">
+              <summary class="collapse-title font-semibold">Show Code</summary>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/6')">
+                <div id='code-6' class='mockup-code w-full'></div>
               </div>
-            </div>
+            </details>
           </div>
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
-          <div class="card-body" id="merge-fragment-card">
-            <h2 class="card-title">Remove Signals</h2>
-            <p id="mf-merge-opts" class="border-1">Click the button to use RemoveSignals to update the signals on the
-              card</p>
-            <div class="justify-end card-actions">
-              <button class="btn btn-primary" data-on-click="@get('/merge/signals/remove')">Remove Signals</button>
-            </div>
-            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
-              <div class="collapse-title font-semibold">Show Code</div>
-              <div class="mockup-code w-full collapse-content text-sm">
-                <pre><code id="code7"></code></pre>
-              </div>
-            </div>
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm"">
+          <div class=" card-body">
+          <h2 class="card-title">Remove Signals</h2>
+          <p class="border-1">WIP - Click the button to use RemoveSignals to update the signals on the
+            card</p>
+          <div class="justify-end card-actions">
+            <button class="btn btn-primary" data-on-click="@get('/merge/signals/remove')">Remove Signals</button>
           </div>
+          <details class="collapse bg-base-100 border-base-300 border">
+            <summary class="collapse-title font-semibold">Show Code</summary>
+            <div class="collapse-content text-sm" data-on-load="@get('/code/7')">
+              <div id='code-7' class='mockup-code w-full'></div>
+            </div>
+          </details>
         </div>
       </div>
+    </div>
     </div>
 
     <div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative" <!-- Your real content goes here -->

@@ -6,8 +6,8 @@
     .dependencies = .{
         .httpz = .{
             // using the dev branch so we are on zig 0.15.dev
-            .url = "git+https://github.com/karlseguin/http.zig?ref=dev#b1896f4b0bd30deb0351039b1ba470c9041f4117",
-            .hash = "httpz-0.0.0-PNVzrE-8BgCUEVpFtYaUOFrWMqXHBu95eyIYRkXbyriy",
+            .url = "git+https://github.com/karlseguin/http.zig/?ref=sync_disown#aa65ee07b8ea47b7e3d6105c3135630d372d0fea",
+            .hash = "httpz-0.0.0-PNVzrAvDBgCyEuvLZqN-dPEudxSOs0mqYg3hP7TGa3Cx",
         },
         .logz = .{
             .url = "git+https://github.com/karlseguin/log.zig#db6ec9818cc6dabf853c3271d8fecb7af5d4755c",
