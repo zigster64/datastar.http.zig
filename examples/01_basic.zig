@@ -57,6 +57,11 @@ pub fn main() !void {
     router.get("/remove", removeFragments, .{});
     router.get("/remove/restore", removeFragmentsRestore, .{});
     router.get("/upsert/attributes", upsertAttributes, .{});
+    router.get("/merge/signals", mergeSignals, .{});
+    router.get("/merge/signals/onlymissing", mergeSignalsOnlyIfMissing, .{});
+    router.get("/merge/signals/remove", removeSignals, .{});
+
+    router.get("/code", code, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     std.debug.print("... or any other IP address pointing to this machine\n", .{});
@@ -93,29 +98,6 @@ fn mergeFragments(_: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "mergeFragments").int("elapsed (μs)", t2 - t1).log();
 }
 
-fn mergeFragmentsNew(_: *httpz.Request, res: *httpz.Response) !void {
-    const t1 = std.time.microTimestamp();
-
-    // these are short lived updates so we close the request as soon as its done
-    const stream = try res.startEventStreamSync();
-    defer stream.close();
-    var w = stream.writer();
-
-    try w.writeAll(
-        \\event: datastar-merge-fragments
-        \\data: fragments <div id="foo">Hello, world!</div>
-        \\data: fragments <p id="mf-merge">
-        \\data: fragments a
-        \\data: fragments b
-        \\data: fragments c
-        \\data: fragments </p>
-        \\
-        \\
-    );
-
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "mergeFragments").int("elapsed (μs)", t2 - t1).log();
-}
 // create a mergeFragments stream, which will write commands over the SSE connection
 // to update parts of the DOM. It will look for the DOM with the matching ID in the default case
 //
@@ -125,6 +107,10 @@ fn mergeFragmentsOpts(req: *httpz.Request, res: *httpz.Response) !void {
 
     const opts = struct {
         morph: []const u8,
+        foo1: []const u8,
+        bar1: []const u8,
+        foo2: []const u8,
+        bar2: []const u8,
     };
 
     const signals = try datastar.readSignals(opts, req);
@@ -271,4 +257,94 @@ fn upsertAttributes(_: *httpz.Request, res: *httpz.Response) !void {
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "upsertAttributes").int("violet-", color).int("elapsed (μs)", t2 - t1).log();
+}
+
+fn mergeSignals(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
+    // these are short lived updates so we close the request as soon as its done
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    var msg = datastar.mergeSignals(stream);
+    defer msg.end();
+
+    // create a random color
+
+    var w = msg.writer();
+
+    // this will set the following signals
+    const foo = prng.random().intRangeAtMost(u8, 0, 255);
+    const bar = prng.random().intRangeAtMost(u8, 0, 255);
+    try w.print("{{ foo1: {d}, bar1: {d} }}", .{ foo, bar });
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "mergeSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
+}
+
+fn mergeSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
+    // these are short lived updates so we close the request as soon as its done
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    var msg = datastar.mergeSignalsIfMissing(stream);
+    defer msg.end();
+
+    // create a random color
+
+    var w = msg.writer();
+
+    // this will set the following signals
+    const foo2 = prng.random().intRangeAtMost(u8, 1, 100);
+    const bar2 = prng.random().intRangeAtMost(u8, 1, 100);
+    try w.print("{{ foo2: {d}, bar2: {d} }}", .{ foo2, bar2 }); // first will update only
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "mergeSignals").int("foo2", foo2).int("bar2", bar2).int("elapsed (μs)", t2 - t1).log();
+}
+
+fn removeSignals(_: *httpz.Request, _: *httpz.Response) !void {}
+
+
+const snippets: [_][]const u8 = {
+@embedFile("snippets/code1.zig"),
+@embedFile("snippets/code2.zig"),
+@embedFile("snippets/code3.zig"),
+@embedFile("snippets/code4.zig"),
+@embedFile("snippets/code5.zig"),
+@embedFile("snippets/code6.zig"),
+@embedFile("snippets/code7.zig"),
+}
+
+fn code(_: *httpz.Request, res: *httpz.Response) !void {
+    const data = @embedFile("snippets/code1.zig");
+
+            const query = try req.query();
+    const snip = query.get("s") orelse return error.MissingSnippetKey;
+
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    var msg = datastar.mergeFragmentsOpt(stream, .{
+        .selector = "#code-1",
+        .merge_type = .append,
+    });
+    defer msg.end();
+
+    var w = msg.writer();
+
+    var it = std.mem.splitAny(u8, data, "\n");
+    while (it.next()) |line| {
+        try w.writeAll("<pre><code>");
+        for (line) |b| {
+            switch (b) {
+                '<' => try w.writeAll("&lt;"),
+                '>' => try w.writeAll("&gt;"),
+                else => try w.writeByte(b),
+            }
+        }
+        try w.writeAll("</code></pre>\n");
+    }
 }

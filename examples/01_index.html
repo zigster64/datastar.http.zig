@@ -9,13 +9,19 @@
     src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    pre,
+    code {
+      white-space: pre-line;
+    }
+  </style>
 </head>
 
 <body class="bg-cyan-700">
   <!-- Navbar -->
 
-  <div
-    class="navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center justify-between">
+  <div class=" navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center
+  justify-between">
     <div class="flex items-center gap-4">
       <span class="btn btn-ghost text-xl text-white block md:hidden">DataStar Basic Ops</span>
       <span class="btn btn-ghost text-xl text-white hidden md:block">DataStar Basic Operations Example</span>
@@ -35,9 +41,9 @@
 
   <section class="mt-32">
 
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
       <div class="p-4">
-        <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="">
           <div class="card-body">
             <h2 class="card-title">MergeFragments Simple</h2>
             <p id="mf-merge">Click the button to use MergeFragments to update this content using <i>.morph</i></p>
@@ -46,10 +52,15 @@
                 Morph</button>
             </div>
           </div>
+          <details class="collapse bg-base-100 border-base-300 border">
+            <summary class="collapse-title font-semibold">Show Code</summary>
+            <div class="collapse-content text-sm" data-on-load="@get('/code')">
+              <div id='code-1' class='mockup-code w-full'></div>
+          </details>
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="">
           <div class="card-body">
             <h2 class="card-title" id="rm-card">Remove Fragments</h2>
             <p id="rm-text">Click the button to use RemoveFragments to delete the error message</p>
@@ -59,22 +70,34 @@
                 <button class="btn btn-error" data-on-click="@get('/remove')">Remove It !</button>
               </div>
             </div>
+            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
+              <div class="collapse-title font-semibold">Show Code</div>
+              <div class="mockup-code w-full collapse-content text-sm">
+                <pre><code id="code2"></code></pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-96 bg-slate-300 card-lg shadow-sm" id="color-change">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" id="color-change">
           <div class="card-body">
             <h2 class="card-title">UpsertAttributes</h2>
             <p>Click the button to change the background color</p>
             <div class="justify-end card-actions">
               <button class="btn btn-accent" data-on-click="@get('/upsert/attributes')">Change It !</button>
             </div>
+            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
+              <div class="collapse-title font-semibold">Show Code</div>
+              <div class="mockup-code w-full collapse-content text-sm">
+                <pre><code id="code3"></code></pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-96 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
           <div class="card-body" id="merge-fragment-card">
             <h2 class="card-title">MergeFragments Options</h2>
             <p id="mf-merge-opts" class="border-1">Click the button to use MergeFragments to update this content using
@@ -97,6 +120,71 @@
               <button class="btn btn-warning" data-on-click="@get('/merge/opts/reset')">Reset</button>
               <button class="btn btn-primary" data-on-click="@get('/merge/opts')">Merge
                 With Options</button>
+            </div>
+            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
+              <div class="collapse-title font-semibold">Show Code</div>
+              <div class="mockup-code w-full collapse-content text-sm">
+                <pre><code id="code4"></code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{}">
+          <div class="card-body" id="merge-fragment-card">
+            <h2 class="card-title">Merge Signals</h2>
+            <p class="border-1">Click the button to use MergeSignals to update the signals on the
+              card</p>
+            <input type="text" placeholder="foo1" data-bind-foo1 />
+            <input type="text" placeholder="bar1" data-bind-bar1 />
+            <div class="justify-end card-actions">
+              <button class="btn btn-primary" data-on-click="@get('/merge/signals')">Merge Signals</button>
+            </div>
+            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
+              <div class="collapse-title font-semibold">Show Code</div>
+              <div class="mockup-code w-full collapse-content text-sm">
+                <pre><code id="code5"></code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+          <div class="card-body" id="merge-fragment-card">
+            <h2 class="card-title">Merge Signals - only if missing</h2>
+            <p class="border-1">Click the button to use MergeSignals to update the signals on the
+              card, but only ones that are missing, so initially thats just 'bar', then nothing updates after that</p>
+            <input type="text" placeholder="foo2" data-bind-foo2 />
+            <input type="text" placeholder="bar2" data-bind-bar2 />
+            <div class="justify-end card-actions">
+              <button class="btn btn-primary" data-on-click="@get('/merge/signals/onlymissing')">Merge Signals if
+                Missing</button>
+            </div>
+            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
+              <div class="collapse-title font-semibold">Show Code</div>
+              <div class="mockup-code w-full collapse-content text-sm">
+                <pre><code id="code6"></code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
+          <div class="card-body" id="merge-fragment-card">
+            <h2 class="card-title">Remove Signals</h2>
+            <p id="mf-merge-opts" class="border-1">Click the button to use RemoveSignals to update the signals on the
+              card</p>
+            <div class="justify-end card-actions">
+              <button class="btn btn-primary" data-on-click="@get('/merge/signals/remove')">Remove Signals</button>
+            </div>
+            <div tabindex="0" class="collapse bg-base-100 border-base-300 border">
+              <div class="collapse-title font-semibold">Show Code</div>
+              <div class="mockup-code w-full collapse-content text-sm">
+                <pre><code id="code7"></code></pre>
+              </div>
             </div>
           </div>
         </div>
