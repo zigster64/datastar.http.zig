@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zig DataStar Streaming API</title>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js"></script>
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@release-candidate/bundles/datastar.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
@@ -45,11 +45,10 @@
       <div class="p-4">
         <div class="card w-128 bg-slate-300 card-lg shadow-sm">
           <div class="card-body">
-            <h2 class="card-title">MergeFragments Simple</h2>
-            <p id="mf-merge">Click the button to use MergeFragments to update this content using <i>.morph</i></p>
+            <h2 class="card-title">PatchElements Simple</h2>
+            <p id="mf-patch">Click the button to use PatchElements to update this content using <i>.outer</i></p>
             <div class="justify-end card-actions">
-              <button class="btn btn-primary" data-on-click="@get('/merge')">Merge
-                Morph</button>
+              <button class="btn btn-primary" data-on-click="@get('/patch')">Patch Morph</button>
             </div>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
@@ -62,27 +61,26 @@
       </div>
       <div class="p-4">
         <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
-          <div class="card-body" id="merge-fragment-card">
-            <h2 class="card-title">MergeFragments Options</h2>
-            <p id="mf-merge-opts" class="border-1">Click the button to use MergeFragments to update this content using
+          <div class="card-body" id="patch-element-card">
+            <h2 class="card-title">PatchElements Options</h2>
+            <p id="mf-patch-opts" class="border-1">Click the button to use PatchElements to update this content using
               different options</p>
             <p>Select Morph Options</p>
             <div class="grid-cols-2">
               <div>
                 <select data-bind-morph>
-                  <option value="inner">Inner HTML</option>
-                  <option value="outer">Outer HTML</option>
+                  <option value="replace">Replace</option>
                   <option value="prepend">Prepend Child</option>
                   <option value="append">Append Child</option>
                   <option value="before">Before Sibling</option>
                   <option value="after">After Sibling</option>
+                  <option value="remove">Remove</option>
                 </select>
               </div>
             </div>
             <div class="justify-end card-actions">
-              <button class="btn btn-warning" data-on-click="@get('/merge/opts/reset')">Reset</button>
-              <button class="btn btn-primary" data-on-click="@get('/merge/opts')">Merge
-                With Options</button>
+              <button class="btn btn-warning" data-on-click="@get('/patch/opts/reset')">Reset</button>
+              <button class="btn btn-primary" data-on-click="@get('/patch/opts')">Patch With Options</button>
             </div>
             <details class="collapse bg-base-100 border-base-300 border">
               <summary class="collapse-title font-semibold">Show Code</summary>
@@ -96,13 +94,13 @@
       <div class="p-4">
         <div class="card w-128 bg-slate-300 card-lg shadow-sm">
           <div class="card-body">
-            <h2 class="card-title" id="rm-card">Remove Fragments</h2>
-            <p id="rm-text">Click the button to use RemoveFragments to delete the error message</p>
-            <div id="remove-me">
-              <p class="border-4 border-error">Lets get rid of this ugly DOM element</p>
-              <div class="justify-end card-actions">
-                <button class="btn btn-error" data-on-click="@get('/remove')">Remove It !</button>
-              </div>
+            <h2 class="card-title">Patch Signals</h2>
+            <p class="border-1">Click the button to use PatchSignals to update the signals on the
+              card</p>
+            <input type="text" placeholder="foo" data-bind-foo />
+            <input type="text" placeholder="bar" data-bind-bar />
+            <div class="justify-end card-actions">
+              <button class="btn btn-primary" data-on-click="@get('/patch/signals')">Patch Signals</button>
             </div>
             <details class="collapse bg-base-100 border-base-300 border">
               <summary class="collapse-title font-semibold">Show Code</summary>
@@ -114,12 +112,15 @@
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" id="color-change">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
           <div class="card-body">
-            <h2 class="card-title">UpsertAttributes</h2>
-            <p>Click the button to change the background color</p>
+            <h2 class="card-title">Patch Signals - only if missing</h2>
+            <p class="border-1">Click the button to use PatchSignals to update the signals on the
+              card, but only ones that are missing, so initially thats just 'bar', then nothing updates after that</p>
+            <code class="border-1 bg-gray-400" data-json-signals></code>
             <div class="justify-end card-actions">
-              <button class="btn btn-accent" data-on-click="@get('/upsert/attributes')">Change It !</button>
+              <button class="btn btn-primary" data-on-click="@get('/patch/signals/onlymissing')">Patch Signals if
+                Missing</button>
             </div>
             <details class="collapse bg-base-100 border-base-300 border">
               <summary class="collapse-title font-semibold">Show Code</summary>
@@ -131,15 +132,13 @@
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{}">
-          <div class="card-body">
-            <h2 class="card-title">Merge Signals</h2>
-            <p class="border-1">Click the button to use MergeSignals to update the signals on the
+          <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+            <div class=" card-body">
+            <h2 class="card-title">Patch Signals - Remove</h2>
+            <p class="border-1">Click the button to use PatchSignals to remove the signals on the
               card</p>
-            <input type="text" placeholder="foo1" data-bind-foo1 />
-            <input type="text" placeholder="bar1" data-bind-bar1 />
             <div class="justify-end card-actions">
-              <button class="btn btn-primary" data-on-click="@get('/merge/signals')">Merge Signals</button>
+              <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove')">Remove Signals</button>
             </div>
             <details class="collapse bg-base-100 border-base-300 border">
               <summary class="collapse-title font-semibold">Show Code</summary>
@@ -148,44 +147,6 @@
               </div>
             </details>
           </div>
-        </div>
-      </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
-          <div class="card-body">
-            <h2 class="card-title">Merge Signals - only if missing</h2>
-            <p class="border-1">Click the button to use MergeSignals to update the signals on the
-              card, but only ones that are missing, so initially thats just 'bar', then nothing updates after that</p>
-            <input type="text" placeholder="foo2" data-bind-foo2 />
-            <input type="text" placeholder="bar2" data-bind-bar2 />
-            <div class="justify-end card-actions">
-              <button class="btn btn-primary" data-on-click="@get('/merge/signals/onlymissing')">Merge Signals if
-                Missing</button>
-            </div>
-            <details class="collapse bg-base-100 border-base-300 border">
-              <summary class="collapse-title font-semibold">Show Code</summary>
-              <div class="collapse-content text-sm" data-on-load="@get('/code/6')">
-                <div id='code-6' class='mockup-code w-full'></div>
-              </div>
-            </details>
-          </div>
-        </div>
-      </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
-          <div class=" card-body">
-          <h2 class="card-title">Remove Signals</h2>
-          <p class="border-1">WIP - Click the button to use RemoveSignals to update the signals on the
-            card</p>
-          <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/merge/signals/remove')">Remove Signals</button>
-          </div>
-          <details class="collapse bg-base-100 border-base-300 border">
-            <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/7')">
-              <div id='code-7' class='mockup-code w-full'></div>
-            </div>
-          </details>
         </div>
       </div>
       <div class="p-4" id="executescript-card">
@@ -198,7 +159,7 @@
             <button class="btn btn-primary" data-on-click="@get('/executescript/1')">Execute Script</button>
           </div>
           <code class="border-1 bg-gray-400">
-            const parent = document.querySelector('#executescript-card');
+            parent = document.querySelector('#executescript-card');
             console.log(parent.outerHTML);
 					</code>
           <div class="justify-end card-actions">
@@ -206,13 +167,12 @@
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/8')">
-              <div id='code-8' class='mockup-code w-full'></div>
+            <div class="collapse-content text-sm" data-on-load="@get('/code/6')">
+              <div id='code-6' class='mockup-code w-full'></div>
             </div>
           </details>
         </div>
       </div>
-    </div>
     </div>
 
     <div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative" <!-- Your real content goes here -->

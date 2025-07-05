@@ -1,14 +1,12 @@
-== mergeSignals handler ==
+== patchSignalsRemove handler ==
 
+    // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    var msg = datastar.mergeSignals(stream);
+    var msg = datastar.patchSignals(stream);
     defer msg.end();
 
     // this will set the following signals
-    const foo = prng.random().intRangeAtMost(u8, 0, 255);
-    const bar = prng.random().intRangeAtMost(u8, 0, 255);
-
     var w = msg.writer();
-    try w.print("{{ foo1: {d}, bar1: {d} }}", .{ foo, bar });
+    try w.writeAll("{ foo: null, bar: null }");

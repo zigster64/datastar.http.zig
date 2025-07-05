@@ -1,4 +1,4 @@
-== mergeFragmentsOpts handler ==
+== patchElementsOpts handler ==
 
     const opts = struct {
         morph: []const u8,
@@ -9,33 +9,35 @@
     if (signals.morph.len < 1) {
         return;
     }
+    // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    // work out which option we selected
-    var merge_type: datastar.MergeType = .morph;
-    for (std.enums.values(datastar.MergeType)) |mt| {
+    // read the signals to work out which options to set, checking the name of the
+    // option vs the enum values, and add them relative to the mf-patch-opt item
+    var patch_mode: datastar.PatchMode = .outer;
+    for (std.enums.values(datastar.PatchMode)) |mt| {
         if (std.mem.eql(u8, @tagName(mt), signals.morph)) {
-            merge_type = mt;
-            break; // can only have 1 merge type
+            patch_mode = mt;
+            break; // can only have 1 patch type
         }
     }
 
-    if (merge_type == .morph) {
-        return; // dont do morphs
+    if (patch_mode == .outer or patch_mode == .inner) {
+        return; // dont do morphs - its not relevant to this demo card
     }
 
-    var msg = datastar.mergeFragmentsOpt(stream, .{
-        .selector = "#mf-merge-opts",
-        .merge_type = merge_type,
+    var msg = datastar.patchElementsOpt(stream, .{
+        .selector = "#mf-patch-opts",
+        .mode = patch_mode,
     });
     defer msg.end();
 
     var w = msg.writer();
-    switch (merge_type) {
-        .outer => {
+    switch (patch_mode) {
+        .replace => {
             try w.writeAll(
-                \\<p id="mf-merge-opts" class="border-4 border-error">Complete Replacement of the OUTER HTML</p>
+                \\<p id="mf-patch-opts" class="border-4 border-error">Complete Replacement of the OUTER HTML</p>
             );
         },
         else => {
@@ -44,4 +46,3 @@
             , .{getCountAndIncrement()});
         },
     }
-

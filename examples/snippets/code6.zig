@@ -1,16 +1,20 @@
-== mergeSignalsIfMissing handler ==
+== executeScript handler ==
+
+    const sample = req.param("sample").?;
+    const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    var msg = datastar.mergeSignalsIfMissing(stream);
+    var msg = datastar.executeScript(stream);
     defer msg.end();
 
-
-    // this willtry to set the following signals
-    // but only if they are not already set
-    const foo2 = prng.random().intRangeAtMost(u8, 1, 100);
-    const bar2 = prng.random().intRangeAtMost(u8, 1, 100);
+    const script_data = if (sample_id == 1)
+        "console.log('Running from executescript!');"
+    else
+        \\parent = document.querySelector('#executescript-card');
+        \\console.log(parent.outerHTML);
+    ;
 
     var w = msg.writer();
-    try w.print("{{ foo2: {d}, bar2: {d} }}", .{ foo2, bar2 });
+    try w.writeAll(script_data);

@@ -1,16 +1,17 @@
-== upsertAttributes handler ==
+== patchSignalsOnlyIfMissing handler ==
 
+    // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    var msg = datastar.upsertAttributes(stream, "#color-change");
+    var msg = datastar.patchSignalsIfMissing(stream);
     defer msg.end();
 
     // create a random color
-    var w = msg.writer();
-    const color = prng.random().intRangeAtMost(u8, 0, 9);
-    const border = prng.random().intRangeAtMost(u8, 1, 3);
 
-    try w.print(
-        \\<div class="bg-violet-{d}00 border-{d} border-yellow-{d}00">
-    , .{ color, std.math.pow(u8, 2, border), 9 - color });
+    var w = msg.writer();
+
+    // this will set the following signals
+    const foo = prng.random().intRangeAtMost(u8, 1, 100);
+    const bar = prng.random().intRangeAtMost(u8, 1, 100);
+    try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar }); // first will update only
