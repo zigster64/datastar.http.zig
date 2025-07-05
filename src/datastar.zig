@@ -1,6 +1,7 @@
 pub const Command = enum {
     patchElements,
     patchSignals,
+    executeScript,
 };
 
 pub const PatchMode = enum {
@@ -38,16 +39,12 @@ pub fn patchSignalsIfMissing(stream: std.net.Stream) Message {
     return Message.init(stream, .patchSignals, true);
 }
 
-pub fn executeScript(stream: std.net.Stream, script: []const u8) Message {
-    const w = stream.writer();
-    try w.print(
-        \\event: datastar-patch-elements
-        \\data: mode append
-        \\data: selector body
-        \\data: elements <script data-effect='el.remove()'>{s}</script>
-        \\
-        \\
-    , .{script});
+pub fn executeScript(stream: std.net.Stream) Message {
+    return Message.init(stream, .executeScript, true);
+}
+
+pub fn executeScriptKeep(stream: std.net.Stream) Message {
+    return Message.init(stream, .executeScript, false);
 }
 
 pub fn removeElements(stream: std.net.Stream, selector: []const u8) !void {
@@ -62,6 +59,7 @@ pub const Message = struct {
     patch_options: PatchElementsOptions = .{},
     only_if_missing: bool = false,
     line_in_progress: bool = false,
+    keep_script: bool = false,
 
     const Writer = std.io.Writer(
         *Message,
@@ -78,7 +76,9 @@ pub const Message = struct {
             .patchSignals => {
                 m.only_if_missing = opt; // must be a bool
             },
-            else => {},
+            .executeScript => {
+                m.keep_script = opt; // must be a bool
+            },
         }
         return m;
     }
@@ -115,7 +115,17 @@ pub const Message = struct {
             },
             .patchSignals => {
                 try w.writeAll("event: datastar-patch-signals\n");
-                try w.print("data: onlyIfMissing {}\n", .{self.only_if_missing});
+                if (self.only_if_missing) {
+                    try w.writeAll("data: onlyIfMissing true\n");
+                }
+            },
+            .executeScript => {
+                try w.writeAll(
+                    \\event: datastar-patch-elements
+                    \\data: mode append
+                    \\data: selector body
+                    \\
+                );
             },
         }
         self.started = true;
@@ -133,13 +143,29 @@ pub const Message = struct {
                 if (self.line_in_progress) {
                     try self.stream.writer().print("{s}\n", .{bytes[start..i]});
                 } else {
-                    try self.stream.writer().print("data: {s} {s}\n", .{
-                        switch (self.command) {
-                            .patchElements => "elements",
-                            .patchSignals => "signals",
+                    switch (self.command) {
+                        .patchElements => {
+                            try self.stream.writer().print(
+                                "data: elements {s}\n",
+                                .{bytes[start..i]},
+                            );
                         },
-                        bytes[start..i],
-                    });
+                        .patchSignals => {
+                            try self.stream.writer().print(
+                                "data: signals {s}\n",
+                                .{bytes[start..i]},
+                            );
+                        },
+                        .executeScript => {
+                            try self.stream.writer().print(
+                                "data: elements <script{s}>{s}</script>\n",
+                                .{
+                                    if (self.keep_script) "" else " data-effect='el.remove()'",
+                                    bytes[start..i],
+                                },
+                            );
+                        },
+                    }
                 }
                 start = i + 1;
                 self.line_in_progress = false;
@@ -151,13 +177,29 @@ pub const Message = struct {
                 try self.stream.writer().print("{s}", .{bytes[start..]});
             } else {
                 // is a completely new line
-                try self.stream.writer().print("data: {s} {s}", .{
-                    switch (self.command) {
-                        .patchElements => "elements",
-                        .patchSignals => "signals",
+                switch (self.command) {
+                    .patchElements => {
+                        try self.stream.writer().print(
+                            "data: elements {s}",
+                            .{bytes[start..]},
+                        );
                     },
-                    bytes[start..],
-                });
+                    .patchSignals => {
+                        try self.stream.writer().print(
+                            "data: signals {s}",
+                            .{bytes[start..]},
+                        );
+                    },
+                    .executeScript => {
+                        try self.stream.writer().print(
+                            "data: elements <script{s}>{s}</script>",
+                            .{
+                                if (self.keep_script) "" else " data-effect='el.remove()'",
+                                bytes[start..],
+                            },
+                        );
+                    },
+                }
                 self.line_in_progress = true;
             }
         }
