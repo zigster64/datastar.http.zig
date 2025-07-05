@@ -1,66 +1,65 @@
 pub const Command = enum {
-    mergeFragments,
-    mergeSignals,
-    removeSignals,
-    executeScript,
+    patchElements,
+    patchSignals,
 };
 
-pub const MergeType = enum {
-    morph,
+pub const PatchMode = enum {
     inner,
     outer,
+    replace,
     prepend,
     append,
     before,
     after,
-    upsertAttributes,
+    remove,
 };
 
-pub const MergeFragmentsOptions = struct {
-    merge_type: MergeType = .morph,
+pub const PatchElementsOptions = struct {
+    mode: PatchMode = .outer,
     selector: ?[]const u8 = null,
     view_transition: bool = false,
 };
 
 const Self = @This();
 
-pub fn mergeFragments(stream: std.net.Stream) Message {
-    return mergeFragmentsOpt(stream, .{});
+pub fn patchElements(stream: std.net.Stream) Message {
+    return patchElementsOpt(stream, .{});
 }
 
-pub fn mergeFragmentsOpt(stream: std.net.Stream, opt: MergeFragmentsOptions) Message {
-    return Message.init(stream, .mergeFragments, opt);
+pub fn patchElementsOpt(stream: std.net.Stream, opt: PatchElementsOptions) Message {
+    return Message.init(stream, .patchElements, opt);
 }
 
-pub fn mergeSignals(stream: std.net.Stream) Message {
-    return Message.init(stream, .mergeSignals, false);
+pub fn patchSignals(stream: std.net.Stream) Message {
+    return Message.init(stream, .patchSignals, false);
 }
 
-pub fn mergeSignalsIfMissing(stream: std.net.Stream) Message {
-    return Message.init(stream, .mergeSignals, true);
+pub fn patchSignalsIfMissing(stream: std.net.Stream) Message {
+    return Message.init(stream, .patchSignals, true);
 }
 
-pub fn executeScript(stream: std.net.Stream) Message {
-    return Message.init(stream, .executeScript, false);
-}
-
-pub fn removeFragments(stream: std.net.Stream, selector: []const u8) !void {
+pub fn executeScript(stream: std.net.Stream, script: []const u8) Message {
     const w = stream.writer();
-    try w.print("event: datastar-remove-fragments\ndata: selector {s}\n\n", .{selector});
+    try w.print(
+        \\event: datastar-patch-elements
+        \\data: mode append
+        \\data: selector body
+        \\data: elements <script data-effect='el.remove()'>{s}</script>
+        \\
+        \\
+    , .{script});
 }
 
-pub fn upsertAttributes(stream: std.net.Stream, selector: []const u8) Message {
-    return Message.init(stream, .mergeFragments, MergeFragmentsOptions{
-        .merge_type = .upsertAttributes,
-        .selector = selector,
-    });
+pub fn removeElements(stream: std.net.Stream, selector: []const u8) !void {
+    const w = stream.writer();
+    try w.print("event: datastar-patch-elements\ndata: mode remove\ndata: selector {s}\n\n", .{selector});
 }
 
 pub const Message = struct {
     stream: std.net.Stream,
     started: bool = false,
-    command: Command = .mergeFragments,
-    merge_options: MergeFragmentsOptions = .{},
+    command: Command = .patchElements,
+    patch_options: PatchElementsOptions = .{},
     only_if_missing: bool = false,
     line_in_progress: bool = false,
 
@@ -73,10 +72,10 @@ pub const Message = struct {
     pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype) Message {
         var m = Message{ .stream = stream, .command = command };
         switch (command) {
-            .mergeFragments => {
-                m.merge_options = opt; // must be a MergeFragmentsOptions
+            .patchElements => {
+                m.patch_options = opt; // must be a PatchElementsOptions
             },
-            .mergeSignals => {
+            .patchSignals => {
                 m.only_if_missing = opt; // must be a bool
             },
             else => {},
@@ -103,23 +102,21 @@ pub const Message = struct {
     pub fn header(self: *Message) !void {
         var w = self.stream.writer();
         switch (self.command) {
-            .mergeFragments => {
-                try w.writeAll("event: datastar-merge-fragments\n");
-                if (self.merge_options.selector) |s| {
+            .patchElements => {
+                try w.writeAll("event: datastar-patch-elements\n");
+                if (self.patch_options.selector) |s| {
                     try w.print("data: selector {s}\n", .{s});
                 }
-                const mt = self.merge_options.merge_type;
+                const mt = self.patch_options.mode;
                 switch (mt) {
-                    .morph => {},
-                    else => try w.print("data: mergeMode {s}\n", .{@tagName(mt)}),
+                    .outer => {},
+                    else => try w.print("data: mode {s}\n", .{@tagName(mt)}),
                 }
             },
-            .mergeSignals => {
-                try w.writeAll("event: datastar-merge-signals\n");
+            .patchSignals => {
+                try w.writeAll("event: datastar-patch-signals\n");
                 try w.print("data: onlyIfMissing {}\n", .{self.only_if_missing});
             },
-            .removeSignals => try w.writeAll("event: datastar-remove-signals\n"),
-            .executeScript => try w.writeAll("event: datastar-execute-script\n"),
         }
         self.started = true;
     }
@@ -138,10 +135,8 @@ pub const Message = struct {
                 } else {
                     try self.stream.writer().print("data: {s} {s}\n", .{
                         switch (self.command) {
-                            .mergeFragments => "fragments",
-                            .mergeSignals => "signals",
-                            .removeSignals => "paths",
-                            .executeScript => "script",
+                            .patchElements => "elements",
+                            .patchSignals => "signals",
                         },
                         bytes[start..i],
                     });
@@ -158,10 +153,8 @@ pub const Message = struct {
                 // is a completely new line
                 try self.stream.writer().print("data: {s} {s}", .{
                     switch (self.command) {
-                        .mergeFragments => "fragments",
-                        .mergeSignals => "signals",
-                        .removeSignals => "paths",
-                        .executeScript => "script",
+                        .patchElements => "elements",
+                        .patchSignals => "signals",
                     },
                     bytes[start..],
                 });
