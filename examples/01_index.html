@@ -19,9 +19,7 @@
 
 <body class="bg-cyan-700">
   <!-- Navbar -->
-
-  <div class=" navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center
-  justify-between">
+  <div class="navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center justify-between">
     <div class="flex items-center gap-4">
       <span class="btn btn-ghost text-xl text-white block md:hidden">DataStar Basic Ops</span>
       <span class="btn btn-ghost text-xl text-white hidden md:block">DataStar Basic Operations Example</span>
@@ -39,11 +37,10 @@
     </div>
   </div>
 
-  <section class="mt-32">
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+	<!--carousel container-->
+	<div class="carousel carousel-center rounded-box w-screen h-screen">
+      <div id="patch-elem-page" class="carousel-item w-full h-full m-auto">
+        <div class="card w-6/12 bg-slate-300 card-lg shadow-sm m-auto">
           <div class="card-body">
             <h2 class="card-title">PatchElements Simple</h2>
             <p id="mf-patch">Click the button to use PatchElements to update this content using <i>.outer</i></p>
@@ -59,8 +56,8 @@
           </details>
         </div>
       </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{morph:''}">
+      <div id="patch-elem-opt-page" class="carousel-item w-full m-auto">
+        <div class="card w-6/12 bg-slate-300 card-lg shadow-sm m-auto">
           <div class="card-body" id="patch-element-card">
             <h2 class="card-title">PatchElements Options</h2>
             <p id="mf-patch-opts" class="border-1">Click the button to use PatchElements to update this content using
@@ -91,8 +88,8 @@
           </div>
         </div>
       </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+      <div id="patch-signals-page" class="carousel-item w-full m-auto">
+        <div class="card w-6/12 bg-slate-300 card-lg shadow-sm m-auto">
           <div class="card-body">
             <h2 class="card-title">Patch Signals</h2>
             <p class="border-1">Click the button to use PatchSignals to update the signals on the
@@ -111,8 +108,8 @@
           </div>
         </div>
       </div>
-      <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+      <div id="patch-signals-if-missing-page" class="carousel-item w-full m-auto">
+        <div class="card w-6/12 bg-slate-300 card-lg shadow-sm m-auto">
           <div class="card-body">
             <h2 class="card-title">Patch Signals - only if missing</h2>
             <p class="border-1">Click the button to use PatchSignals to update the signals on the
@@ -131,8 +128,8 @@
           </div>
         </div>
       </div>
-      <div class="p-4">
-          <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+      <div id="patch-signals-remove-page" class="carousel-item w-full m-auto">
+        <div class="card w-6/12 bg-slate-300 card-lg shadow-sm m-auto">
             <div class=" card-body">
             <h2 class="card-title">Patch Signals - Remove</h2>
             <p class="border-1">Click the button to use PatchSignals to remove the signals on the
@@ -149,8 +146,8 @@
           </div>
         </div>
       </div>
-      <div class="p-4" id="executescript-card">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+      <div id="execute-script-page" class="carousel-item w-full m-auto" id="executescript-card">
+        <div class="card w-6/12 bg-slate-300 card-lg shadow-sm m-auto">
           <div class=" card-body">
           <h2 class="card-title">Execute Script</h2>
           <p class="border-1">WIP - Click the button to execute the below script! Check the window to see if it worked!</p>
@@ -174,15 +171,22 @@
         </div>
       </div>
     </div>
+	</div>
+	<div class="fixed left-1/4 top-3/4 w-6/12 h-1/12 flex flex-row justify-center align-center gap-1">
+		<a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2" href="#patch-elem-page" title="Patch Elements">1</a>
+		<a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2" href="#patch-elem-opt-page" title="Patch Elements With Options">2</a>
+		<a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2" href="#patch-signals-page" title="Patch Signals">3</a>
+		<a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2" href="#patch-signals-if-missing-page" title="Patch Signals If Missing">4</a>
+		<a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2" href="#patch-signals-remove-page" title="Patch Signals - Remove">5</a>
+		<a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2" href="#execute-script-page" title="Execute Script">6</a>
+	</div>
 
-    <div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative" <!-- Your real content goes here -->
-      <div class="relative z-10">
-        <div class="flex-col items-start">
-        </div>
-      </div>
-    </div>
-
-  </section>
+	<!--<div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative" <!-- Your real content goes here -->-->
+	<!--	<div class="relative z-10">-->
+	<!--		<div class="flex-col items-start">-->
+	<!--		</div>-->
+	<!--	</div>-->
+	<!--</div>-->
 
 </body>
 
