@@ -21,6 +21,11 @@ pub const PatchElementsOptions = struct {
     view_transition: bool = false,
 };
 
+pub const PatchSignalsOptions = struct {
+    selector: ?[]const u8 = null,
+    only_if_missing: bool = false,
+};
+
 const Self = @This();
 
 pub fn patchElements(stream: std.net.Stream) Message {
@@ -32,11 +37,21 @@ pub fn patchElementsOpt(stream: std.net.Stream, opt: PatchElementsOptions) Messa
 }
 
 pub fn patchSignals(stream: std.net.Stream) Message {
-    return Message.init(stream, .patchSignals, false);
+    return patchSignalsOpt(stream, .{});
+}
+
+pub fn patchSignalsOpt(stream: std.net.Stream, opt: PatchSignalsOptions) Message {
+    return Message.init(stream, .patchSignals, opt);
 }
 
 pub fn patchSignalsIfMissing(stream: std.net.Stream) Message {
-    return Message.init(stream, .patchSignals, true);
+    return patchSignalsOpt(stream, .{ .only_if_missing = true });
+}
+
+pub fn patchSignalsIfMissingOpt(stream: std.net.Stream, opt: PatchSignalsOptions) Message {
+    var signals_opt = opt;
+    signals_opt.only_if_missing = true;
+    return Message.init(stream, .patchSignals, signals_opt);
 }
 
 pub fn executeScript(stream: std.net.Stream) Message {
@@ -57,7 +72,7 @@ pub const Message = struct {
     started: bool = false,
     command: Command = .patchElements,
     patch_options: PatchElementsOptions = .{},
-    only_if_missing: bool = false,
+    signals_options: PatchSignalsOptions = .{},
     line_in_progress: bool = false,
     keep_script: bool = false,
 
@@ -74,7 +89,7 @@ pub const Message = struct {
                 m.patch_options = opt; // must be a PatchElementsOptions
             },
             .patchSignals => {
-                m.only_if_missing = opt; // must be a bool
+                m.signals_options = opt; // must be a PatchSignalsOptions
             },
             .executeScript => {
                 m.keep_script = opt; // must be a bool
@@ -115,7 +130,10 @@ pub const Message = struct {
             },
             .patchSignals => {
                 try w.writeAll("event: datastar-patch-signals\n");
-                if (self.only_if_missing) {
+                if (self.signals_options.selector) |s| {
+                    try w.print("data: selector {s}\n", .{s});
+                }
+                if (self.signals_options.only_if_missing) {
                     try w.writeAll("data: onlyIfMissing true\n");
                 }
             },
