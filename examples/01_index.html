@@ -93,9 +93,9 @@
           <div class="card-body">
             <h2 class="card-title">Patch Signals</h2>
             <p class="border-1">Click the button to use PatchSignals to update the signals on the
-              card</p>
-            <input type="text" placeholder="foo" data-bind-foo />
-            <input type="text" placeholder="bar" data-bind-bar />
+              card (now scoped to this page only)</p>
+            <input type="text" placeholder="foo (scoped to this page)" data-bind-foo />
+            <input type="text" placeholder="bar (scoped to this page)" data-bind-bar />
             <div class="justify-end card-actions">
               <button class="btn btn-primary" data-on-click="@get('/patch/signals')">Patch Signals</button>
             </div>
@@ -114,6 +114,8 @@
             <h2 class="card-title">Patch Signals - only if missing</h2>
             <p class="border-1">Click the button to use PatchSignals to update the signals on the
               card, but only ones that are missing, so initially thats just 'bar', then nothing updates after that</p>
+            <input type="text" placeholder="foo (scoped to this page)" data-bind-foo />
+            <input type="text" placeholder="bar (scoped to this page)" data-bind-bar />
             <code class="border-1 bg-gray-400" data-json-signals></code>
             <div class="justify-end card-actions">
               <button class="btn btn-primary" data-on-click="@get('/patch/signals/onlymissing')">Patch Signals if
@@ -134,6 +136,8 @@
             <h2 class="card-title">Patch Signals - Remove</h2>
             <p class="border-1">Click the button to use PatchSignals to remove the signals on the
               card</p>
+            <input type="text" placeholder="foo (scoped to this page)" data-bind-foo />
+            <input type="text" placeholder="bar (scoped to this page)" data-bind-bar />
             <div class="justify-end card-actions">
               <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove')">Remove Signals</button>
             </div>
