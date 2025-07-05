@@ -217,11 +217,21 @@ pub fn readSignals(comptime T: type, req: *httpz.Request) !T {
         .GET => {
             const query = try req.query();
             const signals = query.get("datastar") orelse return error.MissingDatastarKey;
-            return std.json.parseFromSliceLeaky(T, req.arena, signals, .{});
+            return std.json.parseFromSliceLeaky(
+                T,
+                req.arena,
+                signals,
+                .{ .ignore_unknown_fields = true },
+            );
         },
         else => {
             const body = req.body() orelse return error.MissingBody;
-            return std.json.parseFromSliceLeaky(T, req.arena, body, .{});
+            return std.json.parseFromSliceLeaky(
+                T,
+                req.arena,
+                body,
+                .{ .ignore_unknown_fields = true },
+            );
         },
     }
 }
