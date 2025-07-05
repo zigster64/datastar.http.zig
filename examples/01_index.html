@@ -172,7 +172,7 @@
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm"">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
           <div class=" card-body">
           <h2 class="card-title">Remove Signals</h2>
           <p class="border-1">WIP - Click the button to use RemoveSignals to update the signals on the
@@ -184,6 +184,30 @@
             <summary class="collapse-title font-semibold">Show Code</summary>
             <div class="collapse-content text-sm" data-on-load="@get('/code/7')">
               <div id='code-7' class='mockup-code w-full'></div>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="p-4" id="executescript-card">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+          <div class=" card-body">
+          <h2 class="card-title">Execute Script</h2>
+          <p class="border-1">WIP - Click the button to execute the below script! Check the window to see if it worked!</p>
+          <code class="border-1 bg-gray-400">console.log('Running from executescript!');</code>
+          <div class="justify-end card-actions">
+            <button class="btn btn-primary" data-on-click="@get('/executescript/1')">Execute Script</button>
+          </div>
+          <code class="border-1 bg-gray-400">
+            const parent = document.querySelector('#executescript-card');
+            console.log(parent.outerHTML);
+					</code>
+          <div class="justify-end card-actions">
+            <button class="btn btn-primary" data-on-click="@get('/executescript/2')">Execute Script</button>
+          </div>
+          <details class="collapse bg-base-100 border-base-300 border">
+            <summary class="collapse-title font-semibold">Show Code</summary>
+            <div class="collapse-content text-sm" data-on-load="@get('/code/8')">
+              <div id='code-8' class='mockup-code w-full'></div>
             </div>
           </details>
         </div>
