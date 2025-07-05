@@ -183,7 +183,9 @@ fn patchSignals(_: *httpz.Request, res: *httpz.Response) !void {
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    var msg = datastar.patchSignals(stream);
+    var msg = datastar.patchSignalsOpt(stream, .{
+        .selector = "#patch-signals-page",
+    });
     defer msg.end();
 
     // create a random color
@@ -206,7 +208,9 @@ fn patchSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    var msg = datastar.patchSignalsIfMissing(stream);
+    var msg = datastar.patchSignalsIfMissingOpt(stream, .{
+        .selector = "#patch-signals-if-missing-page",
+    });
     defer msg.end();
 
     // create a random color
@@ -229,7 +233,9 @@ fn patchSignalsRemove(_: *httpz.Request, res: *httpz.Response) !void {
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    var msg = datastar.patchSignals(stream);
+    var msg = datastar.patchSignalsOpt(stream, .{
+        .selector = "#patch-signals-remove-page",
+    });
     defer msg.end();
 
     // this will set the following signals
