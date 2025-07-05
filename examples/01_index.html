@@ -92,20 +92,20 @@
         </div>
       </div>
       <div class="p-4">
-        <div class="card w-128 bg-slate-300 card-lg shadow-sm" data-signals="{}">
+        <div class="card w-128 bg-slate-300 card-lg shadow-sm">
           <div class="card-body">
             <h2 class="card-title">Patch Signals</h2>
             <p class="border-1">Click the button to use PatchSignals to update the signals on the
               card</p>
-            <input type="text" placeholder="foo1" data-bind-foo1 />
-            <input type="text" placeholder="bar1" data-bind-bar1 />
+            <input type="text" placeholder="foo" data-bind-foo />
+            <input type="text" placeholder="bar" data-bind-bar />
             <div class="justify-end card-actions">
               <button class="btn btn-primary" data-on-click="@get('/patch/signals')">Patch Signals</button>
             </div>
             <details class="collapse bg-base-100 border-base-300 border">
               <summary class="collapse-title font-semibold">Show Code</summary>
-              <div class="collapse-content text-sm" data-on-load="@get('/code/5')">
-                <div id='code-5' class='mockup-code w-full'></div>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/3')">
+                <div id='code-3' class='mockup-code w-full'></div>
               </div>
             </details>
           </div>
@@ -121,12 +121,29 @@
             <div class="justify-end card-actions">
               <button class="btn btn-primary" data-on-click="@get('/patch/signals/onlymissing')">Patch Signals if
                 Missing</button>
-              <button class="btn btn-error" data-on-click="$foo2 = null; $bar2 = null;">Reset</button>
             </div>
             <details class="collapse bg-base-100 border-base-300 border">
               <summary class="collapse-title font-semibold">Show Code</summary>
-              <div class="collapse-content text-sm" data-on-load="@get('/code/6')">
-                <div id='code-6' class='mockup-code w-full'></div>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/4')">
+                <div id='code-4' class='mockup-code w-full'></div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+      <div class="p-4">
+          <div class="card w-128 bg-slate-300 card-lg shadow-sm">
+            <div class=" card-body">
+            <h2 class="card-title">Patch Signals - Remove</h2>
+            <p class="border-1">Click the button to use PatchSignals to remove the signals on the
+              card</p>
+            <div class="justify-end card-actions">
+              <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove')">Remove Signals</button>
+            </div>
+            <details class="collapse bg-base-100 border-base-300 border">
+              <summary class="collapse-title font-semibold">Show Code</summary>
+              <div class="collapse-content text-sm" data-on-load="@get('/code/5')">
+                <div id='code-5' class='mockup-code w-full'></div>
               </div>
             </details>
           </div>
@@ -150,13 +167,12 @@
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/8')">
-              <div id='code-8' class='mockup-code w-full'></div>
+            <div class="collapse-content text-sm" data-on-load="@get('/code/6')">
+              <div id='code-6' class='mockup-code w-full'></div>
             </div>
           </details>
         </div>
       </div>
-    </div>
     </div>
 
     <div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative" <!-- Your real content goes here -->

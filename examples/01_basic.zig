@@ -57,7 +57,7 @@ pub fn main() !void {
     router.get("/patch/opts/reset", patchElementsOptsReset, .{});
     router.get("/patch/signals", patchSignals, .{});
     router.get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing, .{});
-    router.get("/patch/signals/remove", removeSignals, .{});
+    router.get("/patch/signals/remove", patchSignalsRemove, .{});
     router.get("/executescript/:sample", executeScript, .{});
 
     router.get("/code/:snip", code, .{});
@@ -176,59 +176,6 @@ fn patchElementsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
 }
 
-fn removeElements(_: *httpz.Request, res: *httpz.Response) !void {
-    const t1 = std.time.microTimestamp();
-
-    // these are short lived updates so we close the request as soon as its done
-    const stream = try res.startEventStreamSync();
-    defer stream.close();
-
-    try datastar.removeElements(stream, "#remove-me");
-
-    // thats all we need to delete an element
-    // now some fancy code to let up reset the form
-
-    var msg = datastar.patchElementsOpt(stream, .{
-        .selector = "#rm-card",
-        .mode = .append,
-    });
-    defer msg.end();
-
-    var w = msg.writer();
-    try w.writeAll(
-        \\<button id="rm-restore" class="btn btn-warning" data-on-click="@get('/remove/restore')">Put the Ugly thing Back !</button>
-    );
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "removeElements").int("elapsed (μs)", t2 - t1).log();
-}
-
-fn removeElementsRestore(_: *httpz.Request, res: *httpz.Response) !void {
-    const t1 = std.time.microTimestamp();
-
-    // these are short lived updates so we close the request as soon as its done
-    const stream = try res.startEventStreamSync();
-    defer stream.close();
-
-    try datastar.removeElements(stream, "#rm-restore");
-    var msg = datastar.patchElementsOpt(stream, .{
-        .selector = "#rm-text",
-        .mode = .after,
-    });
-    defer msg.end();
-
-    var w = msg.writer();
-    try w.writeAll(
-        \\<div id="remove-me">
-        \\  <p class="border-4 border-error">Lets get rid of this ugly DOM element</p>
-        \\  <div class="justify-end card-actions">
-        \\  <button class="btn btn-error" data-on-click="@get('/remove')">Remove It Again !</button>
-        \\  </div>
-        \\</div>
-    );
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "removeElementsRestore").int("elapsed (μs)", t2 - t1).log();
-}
-
 fn patchSignals(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
@@ -246,7 +193,7 @@ fn patchSignals(_: *httpz.Request, res: *httpz.Response) !void {
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
-    try w.print("{{ foo1: {d}, bar1: {d} }}", .{ foo, bar });
+    try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar });
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
@@ -267,15 +214,31 @@ fn patchSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
     var w = msg.writer();
 
     // this will set the following signals
-    const foo2 = prng.random().intRangeAtMost(u8, 1, 100);
-    const bar2 = prng.random().intRangeAtMost(u8, 1, 100);
-    try w.print("{{ foo2: {d}, bar2: {d} }}", .{ foo2, bar2 }); // first will update only
+    const foo = prng.random().intRangeAtMost(u8, 1, 100);
+    const bar = prng.random().intRangeAtMost(u8, 1, 100);
+    try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar }); // first will update only
 
     const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchSignals").int("foo2", foo2).int("bar2", bar2).int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
 }
 
-fn removeSignals(_: *httpz.Request, _: *httpz.Response) !void {}
+fn patchSignalsRemove(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
+    // these are short lived updates so we close the request as soon as its done
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    var msg = datastar.patchSignals(stream);
+    defer msg.end();
+
+    // this will set the following signals
+    var w = msg.writer();
+    try w.writeAll("{ foo: null, bar: null }");
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "patchSignals").int("foo", null).int("bar", null).int("elapsed (μs)", t2 - t1).log();
+}
 
 const snippets = [_][]const u8{
     @embedFile("snippets/code1.zig"),
@@ -284,8 +247,6 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code4.zig"),
     @embedFile("snippets/code5.zig"),
     @embedFile("snippets/code6.zig"),
-    @embedFile("snippets/code7.zig"),
-    @embedFile("snippets/code8.zig"),
 };
 
 fn code(req: *httpz.Request, res: *httpz.Response) !void {

@@ -1,15 +1,13 @@
-== mergeFragments  Handler ==
+== patchElements handler ==
 
-    // get the SSE stream
+    // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
-    // create a MergeFragments writer
-    var msg = datastar.mergeFragments(stream);
+    var msg = datastar.patchElements(stream);
     defer msg.end();
-    var w = msg.writer();
 
-    // Update the #mf-merge element
+    var w = msg.writer();
     try w.print(
-        "<p id='mf-merge'&gt;This is update number {d}></p>",
-        .{getCountAndIncrement()});
+        \\<p id="mf-patch">This is update number {d}</p>
+    , .{getCountAndIncrement()});
