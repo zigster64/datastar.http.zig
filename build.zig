@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
         libc: bool = false,
     }{
         .{ .file = "examples/01_basic.zig", .name = "example_1" },
-        // .{ .file = "examples/02_petshop.zig", .name = "example_2" },
+        .{ .file = "examples/02_petshop.zig", .name = "example_2" },
         // .{ .file = "examples/03_racing.zig", .name = "example_3" },
     };
 
@@ -57,6 +57,9 @@ pub fn build(b: *std.Build) void {
 
             const logz_module = b.dependency("logz", dep_opts);
             exe.root_module.addImport("logz", logz_module.module("logz"));
+
+            const zts_module = b.dependency("zts", dep_opts);
+            exe.root_module.addImport("zts", zts_module.module("zts"));
 
             b.installArtifact(exe);
 
