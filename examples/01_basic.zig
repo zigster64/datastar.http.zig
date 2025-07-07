@@ -52,9 +52,11 @@ pub fn main() !void {
     var router = try server.router(.{});
 
     router.get("/", index, .{});
+    router.get("/text-html", textHTML, .{});
     router.get("/patch", patchElements, .{});
     router.get("/patch/opts", patchElementsOpts, .{});
     router.get("/patch/opts/reset", patchElementsOptsReset, .{});
+    router.get("/patch/json", jsonSignals, .{});
     router.get("/patch/signals", patchSignals, .{});
     router.get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing, .{});
     router.get("/patch/signals/remove", patchSignalsRemove, .{});
@@ -71,6 +73,22 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
     res.body = @embedFile("01_index.html");
 }
 
+// Output a normal text/html response, and have it automatically patch the DOM
+fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
+    res.content_type = .HTML;
+    res.body = try std.fmt.allocPrint(
+        res.arena,
+        \\<p id="text-html">This is update number {d}</p>
+    ,
+        .{getCountAndIncrement()},
+    );
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
+}
+
 // create a patchElements stream, which will write commands over the SSE connection
 // to update parts of the DOM. It will look for the DOM with the matching ID in the default case
 //
@@ -80,7 +98,7 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
 fn patchElements(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
+    // // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
@@ -176,6 +194,18 @@ fn patchElementsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
 }
 
+fn jsonSignals(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
+    try res.json(.{
+        .fooj = prng.random().intRangeAtMost(u8, 0, 255),
+        .barj = prng.random().intRangeAtMost(u8, 0, 255),
+    }, .{});
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "jsonSignals").int("elapsed (μs)", t2 - t1).log();
+}
+
 fn patchSignals(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
@@ -240,52 +270,9 @@ fn patchSignalsRemove(_: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "patchSignals").int("foo", null).int("bar", null).int("elapsed (μs)", t2 - t1).log();
 }
 
-const snippets = [_][]const u8{
-    @embedFile("snippets/code1.zig"),
-    @embedFile("snippets/code2.zig"),
-    @embedFile("snippets/code3.zig"),
-    @embedFile("snippets/code4.zig"),
-    @embedFile("snippets/code5.zig"),
-    @embedFile("snippets/code6.zig"),
-};
-
-fn code(req: *httpz.Request, res: *httpz.Response) !void {
-    const snip = req.param("snip").?;
-    const snip_id = try std.fmt.parseInt(u8, snip, 10);
-
-    if (snip_id < 1 or snip_id > snippets.len) {
-        return error.InvalidCodeSnippet;
-    }
-
-    const data = snippets[snip_id - 1];
-    const stream = try res.startEventStreamSync();
-    defer stream.close();
-
-    var buf: [1024]u8 = undefined;
-    const selector = try std.fmt.bufPrint(&buf, "#code-{s}", .{snip});
-    var msg = datastar.patchElementsOpt(stream, .{
-        .selector = selector,
-        .mode = .append,
-    });
-    defer msg.end();
-
-    var w = msg.writer();
-
-    var it = std.mem.splitAny(u8, data, "\n");
-    while (it.next()) |line| {
-        try w.writeAll("<pre><code>");
-        for (line) |c| {
-            switch (c) {
-                '<' => try w.writeAll("&lt;"),
-                '>' => try w.writeAll("&gt;"),
-                else => try w.writeByte(c),
-            }
-        }
-        try w.writeAll("</code></pre>\n");
-    }
-}
-
 fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+
     const sample = req.param("sample").?;
     const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
@@ -304,4 +291,54 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
 
     var w = msg.writer();
     try w.writeAll(script_data);
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "executeScript").int("sample_id", sample_id).int("elapsed (μs)", t2 - t1).log();
+}
+
+const snippets = [_][]const u8{
+    @embedFile("snippets/code1.zig"),
+    @embedFile("snippets/code2.zig"),
+    @embedFile("snippets/code3.zig"),
+    @embedFile("snippets/code4.zig"),
+    @embedFile("snippets/code5.zig"),
+    @embedFile("snippets/code6.zig"),
+    @embedFile("snippets/code7.zig"),
+    @embedFile("snippets/code8.zig"),
+};
+
+fn code(req: *httpz.Request, res: *httpz.Response) !void {
+    const snip = req.param("snip").?;
+    const snip_id = try std.fmt.parseInt(u8, snip, 10);
+
+    if (snip_id < 1 or snip_id > snippets.len) {
+        return error.InvalidCodeSnippet;
+    }
+
+    const data = snippets[snip_id - 1];
+    const stream = try res.startEventStreamSync();
+    defer stream.close();
+
+    const selector = try std.fmt.allocPrint(res.arena, "#code-{s}", .{snip});
+    var msg = datastar.patchElementsOpt(stream, .{
+        .selector = selector,
+        .mode = .append,
+    });
+    defer msg.end();
+
+    var w = msg.writer();
+
+    var it = std.mem.splitAny(u8, data, "\n");
+    while (it.next()) |line| {
+        try w.writeAll("<pre><code>");
+        for (line) |c| {
+            switch (c) {
+                '<' => try w.writeAll("&lt;"),
+                '>' => try w.writeAll("&gt;"),
+                ' ' => try w.writeAll("&nbsp;"),
+                else => try w.writeByte(c),
+            }
+        }
+        try w.writeAll("</code></pre>\n");
+    }
 }

@@ -1,20 +1,17 @@
-== executeScript handler ==
+== patchSignalsOnlyIfMissing handler ==
 
-    const sample = req.param("sample").?;
-    const sample_id = try std.fmt.parseInt(u8, sample, 10);
+// these are short lived updates so we close the request as soon as its done
+const stream = try res.startEventStreamSync();
+defer stream.close();
 
-    const stream = try res.startEventStreamSync();
-    defer stream.close();
+var msg = datastar.patchSignalsIfMissing(stream);
+defer msg.end();
 
-    var msg = datastar.executeScript(stream);
-    defer msg.end();
+// create a random color
 
-    const script_data = if (sample_id == 1)
-        "console.log('Running from executescript!');"
-    else
-        \\parent = document.querySelector('#executescript-card');
-        \\console.log(parent.outerHTML);
-    ;
+var w = msg.writer();
 
-    var w = msg.writer();
-    try w.writeAll(script_data);
+// this will set the following signals
+const foo = prng.random().intRangeAtMost(u8, 1, 100);
+const bar = prng.random().intRangeAtMost(u8, 1, 100);
+try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar }); // first will update only
