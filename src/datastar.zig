@@ -21,8 +21,6 @@ pub const PatchElementsOptions = struct {
     view_transition: bool = false,
 };
 
-const Self = @This();
-
 pub fn patchElements(stream: std.net.Stream) Message {
     return patchElementsOpt(stream, .{});
 }
@@ -236,5 +234,43 @@ pub fn readSignals(comptime T: type, req: *httpz.Request) !T {
     }
 }
 
+pub fn Subscribers(T: type) type {
+    return struct {
+        gpa: Allocator,
+        app: T,
+        subs: std.StringHashMap(Streams),
+
+        const Self = @This();
+        const Streams = std.ArrayList(std.net.Stream);
+
+        pub fn init(gpa: Allocator, ctx: T) !Self {
+            return .{
+                .gpa = gpa,
+                .app = ctx,
+                .subs = try std.StringHashMap(Streams).init(gpa),
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            for (self.subs) |s| {
+                for (s) |sub| {
+                    sub.close() catch {};
+                }
+                s.deinit();
+            }
+            self.sub.deinit();
+        }
+
+        pub fn publish(self: *Self, topic: []const u8) !void {
+            var streams = self.subs.get(topic) orelse return;
+            for (streams.items) |stream| {
+                // TODO - call the callback associated with the sub, passing
+                // this stream as the param
+            }
+        }
+    };
+}
+
 const std = @import("std");
 const httpz = @import("httpz");
+const Allocator = std.mem.Allocator;

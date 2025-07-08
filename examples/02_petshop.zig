@@ -3,86 +3,14 @@ const httpz = @import("httpz");
 const logz = @import("logz");
 const zts = @import("zts");
 const datastar = @import("datastar.httpz");
+const App = @import("02_cats.zig").App;
+
 const Allocator = std.mem.Allocator;
 
 const PORT = 8082;
 
-const Cat = struct {
-    id: u8,
-    name: []const u8,
-    img: []const u8,
-    bid: usize = 0,
-
-    pub fn render(cat: Cat, w: anytype) !void {
-        try w.print(
-            \\<div class="card w-8/12 bg-slate-300 card-lg shadow-sm m-auto mt-4">
-            \\  <div class="card-body" id="cat-{[id]}">
-            \\    <h2 class="card-title">{[name]s}</h2>
-            \\  <div class="avatar">
-            \\    <div class="w-48 h-48 rounded-full">
-            \\      <img src="{[img]s}">
-            \\    </div>
-            \\  </div>
-            \\  <input type="number" placeholder="Bid" class="input" data-bind-bid-{[id]} value="{[bid]}" />
-            \\  <div class="justify-end card-actions">
-            \\    <button class="btn btn-primary" data-on-click="@post('/bid')">Place Bid</button>
-            \\  </div>
-            \\  </div>
-            \\</div>
-        , cat);
-    }
-};
-
-const App = struct {
-    gpa: Allocator,
-    cats: std.ArrayList(Cat),
-    mutex: std.Thread.Mutex,
-
-    pub fn init(gpa: Allocator) !App {
-        var cats = std.ArrayList(Cat).init(gpa);
-
-        try cats.append(.{
-            .id = 1,
-            .name = "Harry",
-            .img = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y2F0fGVufDB8fDB8fHww",
-        });
-        try cats.append(.{
-            .id = 2,
-            .name = "Meghan",
-            .img = "https://images.unsplash.com/photo-1574144611937-0df059b5ef3e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGNhdHxlbnwwfHwwfHx8MA%3D%3D",
-        });
-        try cats.append(.{
-            .id = 3,
-            .name = "Prince",
-            .img = "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fGNhdHxlbnwwfHwwfHx8MA%3D%3D",
-        });
-        try cats.append(.{
-            .id = 4,
-            .name = "Fluffy",
-            .img = "https://plus.unsplash.com/premium_photo-1664299749481-ac8dc8b49754?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8Y2F0fGVufDB8fDB8fHww",
-        });
-        try cats.append(.{
-            .id = 5,
-            .name = "Princessa",
-            .img = "https://images.unsplash.com/photo-1472491235688-bdc81a63246e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8Y2F0fGVufDB8fDB8fHww",
-        });
-        try cats.append(.{
-            .id = 6,
-            .name = "Tiger",
-            .img = "https://plus.unsplash.com/premium_photo-1673967770669-91b5c2f2d0ce?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8a2l0dGVufGVufDB8fDB8fHww",
-        });
-        const app = App{
-            .gpa = gpa,
-            .mutex = .{},
-            .cats = cats,
-        };
-        return app;
-    }
-};
-
-// This example demonstrates basic DataStar operations
-// PatchElements / PatchSignals
-
+// This example demonstrates a simple auction site that uses
+// SSE and pub/sub to have realtime updates of bids on a Cat auction
 pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
@@ -114,20 +42,74 @@ pub fn main() !void {
     var router = try server.router(.{});
 
     router.get("/", index, .{});
+    router.get("/cats", catsList, .{});
+    router.post("/bid/:id", postBid, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     std.debug.print("... or any other IP address pointing to this machine\n", .{});
     try server.listen();
 }
 
-fn index(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    res.content_type = .HTML;
-    const w = res.writer();
-    const tmpl = @embedFile("02_index.html");
-    try zts.writeHeader(tmpl, w);
+fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "index").int("elapsed (μs)", t2 - t1).log();
+    }
 
+    res.content_type = .HTML;
+    res.body = @embedFile("02_index.html");
+}
+
+fn catsList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    app.mutex.lock();
+    defer {
+        app.mutex.unlock();
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
+    }
+
+    // // these are short lived updates so we close the request as soon as its done
+    const stream = try res.startEventStreamSync();
+    try app.subscribe("bids", stream);
+
+    var msg = datastar.patchElementsOpt(stream, .{
+        .selector = "#cat-list",
+        .mode = .append,
+    });
+    defer msg.end();
+
+    const w = msg.writer();
     for (app.cats.items) |cat| {
         try cat.render(w);
     }
-    try zts.write(tmpl, "cats", w);
+}
+
+fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    app.mutex.lock();
+    defer {
+        app.mutex.unlock();
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "postBid").int("elapsed (μs)", t2 - t1).log();
+    }
+
+    const id_param = req.param("id").?;
+    const id = try std.fmt.parseInt(usize, id_param, 10);
+
+    if (id < 0 or id >= app.cats.items.len) {
+        return error.InvalidID;
+    }
+
+    const Bids = struct {
+        bids: []usize,
+    };
+    const signals = try datastar.readSignals(Bids, req);
+    std.debug.print("bids {any}\n", .{signals.bids});
+    const new_bid = signals.bids[id];
+    std.debug.print("new bid {}\n", .{new_bid});
+    app.cats.items[id].bid = new_bid;
+
+    try app.publish("bids");
 }

@@ -38,8 +38,8 @@
     </div>
   </div>
 
-  <div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-32 h-full">
-    .cats
+  <div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-32 h-full" data-signals="{bids: []}"
+    data-on-load="@get('/cats')">
   </div>
 
 </body>
