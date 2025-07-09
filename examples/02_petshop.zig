@@ -74,7 +74,7 @@ fn catsList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const stream = try res.startEventStreamSync();
     // DO NOT close - this stream stays open forever
     // and gets subscribed to "cats" update events
-    try app.subscribers.?.subscribe("cats", stream, App.publishCatList);
+    try app.subscribe("cats", stream, App.publishCatList);
 }
 
 fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
