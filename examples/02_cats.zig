@@ -97,7 +97,7 @@ pub const App = struct {
         });
 
         for (app.cats.items) |cat| {
-            try cat.render(msg.writer());
+            try cat.render(w);
         }
         try w.writeAll(
             \\</div>
