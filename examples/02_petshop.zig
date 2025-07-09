@@ -16,6 +16,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     var app = try App.init(allocator);
+    try app.enableSubscriptions();
 
     var server = try httpz.Server(*App).init(allocator, .{
         .port = PORT,
@@ -70,20 +71,10 @@ fn catsList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
-    try app.subscribe("bids", stream);
-
-    var msg = datastar.patchElementsOpt(stream, .{
-        .selector = "#cat-list",
-        .mode = .append,
-    });
-    defer msg.end();
-
-    const w = msg.writer();
-    for (app.cats.items) |cat| {
-        try cat.render(w);
-    }
+    // DO NOT close - this stream stays open forever
+    // and gets subscribed to "cats" update events
+    try app.subscribers.?.subscribe("cats", stream, App.publishCatList);
 }
 
 fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
@@ -111,5 +102,6 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     std.debug.print("new bid {}\n", .{new_bid});
     app.cats.items[id].bid = new_bid;
 
-    try app.publish("bids");
+    // update any screens subscribed to "cats"
+    try app.subscribers.?.publish("cats");
 }

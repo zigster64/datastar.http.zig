@@ -22,14 +22,18 @@ const Cat = struct {
             \\      </div>
             \\    </div>
             \\    <label class="input">$ 
-            \\      <input type="number" placeholder="Bid" class="grow" data-bind-bids.{[id]} value="{[bid]}" />
+            \\      <input type="number" placeholder="Bid" class="grow" data-bind-bids.{[id]} />
             \\    </label>
             \\    <div class="justify-end card-actions">
             \\      <button class="btn btn-primary" data-on-click="@post('/bid/{[id]}')">Place Bid</button>
             \\    </div>
             \\  </div>
             \\</div>
-        , cat);
+        , .{
+            .id = cat.id,
+            .name = cat.name,
+            .img = cat.img,
+        });
     }
 };
 
@@ -49,46 +53,45 @@ pub const App = struct {
         };
     }
 
+    pub fn enableSubscriptions(app: *App) !void {
+        app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
+    }
+
     pub fn deinit(app: *App) void {
         app.streams.deinit();
         app.cats.deinit();
     }
 
-    pub fn subscribe(app: *App, topic: []const u8, stream: std.net.Stream) !void {
-        if (app.subscribers == null) {
-            app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
-        }
-        try app.subscribers.subscribe(topic, stream);
-    }
-
-    pub fn publish(app: *App, topic: []const u8) !void {
-        if (app.subscribers) |s| {
-            return s.publish(topic);
-        }
-    }
-
-    pub fn publishBids(_: *App, _: std.net.Stream) !void {
-        const t1 = std.time.microTimestamp();
-        defer {
-            const t2 = std.time.microTimestamp();
-            logz.info().string("event", "updateBids").int("elapsed (μs)", t2 - t1).log();
-        }
-    }
-
-    pub fn publishCatList(app: *App, _: std.net.Stream) !void {
+    pub fn publishCatList(app: *App, stream: std.net.Stream) !void {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
             logz.info().string("event", "publishCatList").int("elapsed (μs)", t2 - t1).log();
         }
 
+        // Update the HTML in the correct order
+        var msg = datastar.patchElements(stream);
+        defer msg.end();
+
+        // UGLY - doing very manual updates on the signals array below ... ok for demo with only 6 cats, but dont do this in real life please
+        var w = msg.writer();
+        try w.print(
+            \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-32 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
+        , .{
+            app.cats.items[0].bid,
+            app.cats.items[1].bid,
+            app.cats.items[2].bid,
+            app.cats.items[3].bid,
+            app.cats.items[4].bid,
+            app.cats.items[5].bid,
+        });
+
         for (app.cats.items) |cat| {
-            std.debug.print("TODO publish Cat {[id]} {[name]s} has bid {[bid]}\n", .{
-                .id = cat.id,
-                .name = cat.name,
-                .bid = cat.bid,
-            });
+            try cat.render(msg.writer());
         }
+        try w.writeAll(
+            \\</div>
+        );
     }
 };
 
