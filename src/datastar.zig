@@ -21,8 +21,6 @@ pub const PatchElementsOptions = struct {
     view_transition: bool = false,
 };
 
-const Self = @This();
-
 pub fn patchElements(stream: std.net.Stream) Message {
     return patchElementsOpt(stream, .{});
 }
@@ -236,5 +234,104 @@ pub fn readSignals(comptime T: type, req: *httpz.Request) !T {
     }
 }
 
+pub fn Subscribers(comptime T: type) type {
+    return struct {
+        gpa: Allocator,
+        app: T,
+        subs: Subscriptions,
+        mutex: std.Thread.Mutex = .{},
+
+        const Self = @This();
+        const Subscription = struct {
+            stream: std.net.Stream,
+            action: Callback(T),
+        };
+        const Subscriptions = std.StringHashMap(std.ArrayList(Subscription));
+
+        pub fn init(gpa: Allocator, ctx: T) !Self {
+            return .{
+                .gpa = gpa,
+                .app = ctx,
+                .subs = Subscriptions.init(gpa),
+            };
+        }
+
+        pub fn deinit(self: *Self) void {
+            for (self.subs) |s| {
+                for (s) |sub| {
+                    sub.stream.close() catch {};
+                }
+                s.deinit();
+            }
+            self.sub.deinit();
+        }
+
+        pub fn subscribe(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback(T)) !void {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+
+            // on first subscription, try to write the output first
+            // if it works, then we add them to the subscriber list
+            std.debug.print("calling the initial subscribe callback function {} for topic {s} on stream {d}\n", .{ func, topic, stream.handle });
+            @call(.auto, func, .{ self.app, stream }) catch |err| {
+                stream.close();
+                return err;
+            };
+            std.debug.print("done callback\n", .{});
+
+            const new_sub = Subscription{
+                .stream = stream,
+                .action = func,
+            };
+            if (self.subs.getPtr(topic)) |subs| {
+                try subs.append(new_sub);
+            } else {
+                var new_sublist = std.ArrayList(Subscription).init(self.gpa);
+                try new_sublist.append(new_sub);
+                try self.subs.put(topic, new_sublist);
+            }
+
+            std.debug.print("Updated subs on topic {s} :\n", .{topic});
+            for (self.subs.get(topic).?.items, 0..) |s, ii| {
+                std.debug.print("  {d} - {any}\n", .{ ii, s.stream });
+            }
+        }
+
+        pub fn publish(self: *Self, topic: []const u8) !void {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+
+            std.debug.print("publish on topic {s}\n", .{topic});
+            if (self.subs.getPtr(topic)) |subs| {
+                // traverse the list backwards, so its safe to drop elements during the traversal
+                var i: usize = subs.items.len;
+                while (i > 0) {
+                    i -= 1;
+                    var sub = subs.items[i];
+                    std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
+                    @call(.auto, sub.action, .{ self.app, sub.stream }) catch |err| {
+                        sub.stream.close();
+                        _ = subs.swapRemove(i);
+                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                    };
+                }
+
+                std.debug.print("Remaining subs on topic {s} :\n", .{topic});
+                for (subs.items, 0..) |s, ii| {
+                    std.debug.print("  {d} - {any}\n", .{ ii, s.stream });
+                }
+            }
+        }
+    };
+}
+
+pub fn Callback(comptime ctx: type) type {
+    if (ctx == void) {
+        return *const fn (std.net.Stream) anyerror!void;
+    }
+    return *const fn (ctx, std.net.Stream) anyerror!void;
+}
+
 const std = @import("std");
 const httpz = @import("httpz");
+const Allocator = std.mem.Allocator;

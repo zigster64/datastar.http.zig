@@ -76,6 +76,10 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
 // Output a normal text/html response, and have it automatically patch the DOM
 fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
+    }
 
     res.content_type = .HTML;
     res.body = try std.fmt.allocPrint(
@@ -84,9 +88,6 @@ fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
     ,
         .{getCountAndIncrement()},
     );
-
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
 }
 
 // create a patchElements stream, which will write commands over the SSE connection
@@ -97,6 +98,10 @@ fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
 // protocol parts to split it into lines and describe each element by magic.
 fn patchElements(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "patchElements").int("elapsed (μs)", t2 - t1).log();
+    }
 
     // // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
@@ -109,9 +114,6 @@ fn patchElements(_: *httpz.Request, res: *httpz.Response) !void {
     try w.print(
         \\<p id="mf-patch">This is update number {d}</p>
     , .{getCountAndIncrement()});
-
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchElements").int("elapsed (μs)", t2 - t1).log();
 }
 
 // create a patchElements stream, which will write commands over the SSE connection
@@ -120,6 +122,10 @@ fn patchElements(_: *httpz.Request, res: *httpz.Response) !void {
 // Use a variety of patch options for this one
 fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "patchElementsOpts").int("elapsed (μs)", t2 - t1).log();
+    }
 
     const opts = struct {
         morph: []const u8,
@@ -167,14 +173,15 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
             , .{getCountAndIncrement()});
         },
     }
-
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchElementsOpts").int("elapsed (μs)", t2 - t1).log();
 }
 
 // Just reset the options form if it gets ugly
 fn patchElementsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
+    }
 
     // these are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
@@ -189,21 +196,19 @@ fn patchElementsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
 
     var w = msg.writer();
     try w.writeAll(@embedFile("01_index_opts.html"));
-
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
 }
 
 fn jsonSignals(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "jsonSignals").int("elapsed (μs)", t2 - t1).log();
+    }
 
     try res.json(.{
         .fooj = prng.random().intRangeAtMost(u8, 0, 255),
         .barj = prng.random().intRangeAtMost(u8, 0, 255),
     }, .{});
-
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "jsonSignals").int("elapsed (μs)", t2 - t1).log();
 }
 
 fn patchSignals(_: *httpz.Request, res: *httpz.Response) !void {
@@ -247,7 +252,7 @@ fn patchSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
     const foo = prng.random().intRangeAtMost(u8, 1, 100);
     const bar = prng.random().intRangeAtMost(u8, 1, 100);
     try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar }); // first will update only
-
+    //
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
 }
