@@ -62,6 +62,16 @@ pub const App = struct {
         app.cats.deinit();
     }
 
+    // convenience function
+    pub fn subscribe(app: *App, topic: []const u8, stream: std.net.Stream, callback: anytype) !void {
+        try app.subscribers.?.subscribe(topic, stream, callback);
+    }
+
+    // convenience function
+    pub fn publish(app: *App, topic: []const u8) !void {
+        try app.subscribers.?.publish(topic);
+    }
+
     pub fn publishCatList(app: *App, stream: std.net.Stream) !void {
         const t1 = std.time.microTimestamp();
         defer {

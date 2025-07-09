@@ -103,5 +103,5 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     app.cats.items[id].bid = new_bid;
 
     // update any screens subscribed to "cats"
-    try app.subscribers.?.publish("cats");
+    try app.publish("cats");
 }
