@@ -272,7 +272,7 @@ pub fn Subscribers(comptime T: type) type {
 
             // on first subscription, try to write the output first
             // if it works, then we add them to the subscriber list
-            std.debug.print("calling the initial subscribe callback function {} for topic {s} on stream {any}\n", .{ func, topic, stream });
+            std.debug.print("calling the initial subscribe callback function {} for topic {s} on stream {d}\n", .{ func, topic, stream.handle });
             @call(.auto, func, .{ self.app, stream }) catch |err| {
                 stream.close();
                 return err;
@@ -308,11 +308,11 @@ pub fn Subscribers(comptime T: type) type {
                 while (i > 0) {
                     i -= 1;
                     var sub = subs.items[i];
-                    std.debug.print("calling the publish callback function {} for topic {s} on stream {any}\n", .{ sub.action, topic, sub.stream });
+                    std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
                     @call(.auto, sub.action, .{ self.app, sub.stream }) catch |err| {
                         sub.stream.close();
                         _ = subs.swapRemove(i);
-                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream, topic, err });
+                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
                     };
                 }
 
