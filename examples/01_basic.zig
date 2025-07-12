@@ -59,7 +59,7 @@ pub fn main() !void {
     router.get("/patch/json", jsonSignals, .{});
     router.get("/patch/signals", patchSignals, .{});
     router.get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing, .{});
-    router.get("/patch/signals/remove", patchSignalsRemove, .{});
+    router.get("/patch/signals/remove/:names", patchSignalsRemove, .{});
     router.get("/executescript/:sample", executeScript, .{});
 
     router.get("/code/:snip", code, .{});
@@ -257,19 +257,37 @@ fn patchSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
 }
 
-fn patchSignalsRemove(_: *httpz.Request, res: *httpz.Response) !void {
+fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
+    const signals_to_remove: []const u8 = req.param("names").?;
+    var names_iter = std.mem.splitScalar(u8, signals_to_remove, ',');
+
+    // Would normally want to escape and validate the provided names here
+
+    // These are short lived updates so we close the request as soon as its done
     const stream = try res.startEventStreamSync();
     defer stream.close();
 
     var msg = datastar.patchSignals(stream);
     defer msg.end();
 
-    // this will set the following signals
+    // Sending a message to remove the following json-formatted signals
     var w = msg.writer();
-    try w.writeAll("{ foo: null, bar: null }");
+    // Formatting of json payload
+
+    const first = names_iter.next();
+    if (first) |val| { // If receiving a list, send each signal to be removed
+        var curr = val;
+        _ = try w.write("{");
+        while (names_iter.next()) |next| {
+            try w.print("{s}: null, ", .{curr});
+            curr = next;
+        }
+        try w.print("{s}: null }}", .{curr}); // Hack because trailing comma is not ok in json
+    } else { // Otherwise, send only the single signal to be removed
+        try w.print("{{ {s}: null }}", .{signals_to_remove});
+    }
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", null).int("bar", null).int("elapsed (μs)", t2 - t1).log();
