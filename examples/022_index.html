@@ -14,6 +14,29 @@
     code {
       white-space: pre-line;
     }
+
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      /* Set a longer duration for the animation */
+      animation-duration: 900ms;
+      animation-timing-function: ease-in-out;
+    }
+
+    /* You can add your custom animations here too */
+    @keyframes slide-from-right {
+      from {
+        transform: translateX(30px);
+        opacity: 0;
+      }
+    }
+
+    .card {
+      view-transition-name: card-transition;
+    }
+
+    ::view-transition-new(card-transition) {
+      animation: slide-from-right 800ms ease-out;
+    }
   </style>
 </head>
 

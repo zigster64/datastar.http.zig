@@ -116,7 +116,6 @@ pub const App = struct {
     }
 
     pub fn sortCats(app: *App, sort: SortType) void {
-        std.debug.print("want to sort cats from {} to {}\n", .{ app.last_sort, sort });
         if (app.last_sort == sort) return;
 
         switch (sort) {
@@ -125,7 +124,6 @@ pub const App = struct {
             .high => std.sort.block(Cat, app.cats.items, {}, catSortHigh),
         }
         app.last_sort = sort;
-        std.debug.print("converted to new sort {}\n", .{sort});
     }
 
     // convenience function
@@ -156,7 +154,7 @@ pub const App = struct {
         std.debug.print("publishCatList with session {?s}\n", .{session});
 
         // Update the HTML in the correct order
-        var msg = datastar.patchElements(stream);
+        var msg = datastar.patchElementsOpt(stream, .{ .view_transition = true });
         defer msg.end();
 
         // TODO - this is uneccessarily ugly, but its still quick, so nobody is going to care
@@ -177,7 +175,6 @@ pub const App = struct {
         if (session) |s| {
             // then re-sort them if its different to id order to get the cards right
             if (app.sessions.get(s)) |session_prefs| {
-                std.debug.print("got session prefs {}\n", .{session_prefs});
                 app.sortCats(session_prefs.sort);
             }
         }
