@@ -234,6 +234,8 @@ pub fn readSignals(comptime T: type, req: *httpz.Request) !T {
     }
 }
 
+const SessionType = ?[]const u8;
+
 pub fn Subscribers(comptime T: type) type {
     return struct {
         gpa: Allocator,
@@ -245,6 +247,7 @@ pub fn Subscribers(comptime T: type) type {
         const Subscription = struct {
             stream: std.net.Stream,
             action: Callback(T),
+            session: SessionType = null,
         };
         const Subscriptions = std.StringHashMap(std.ArrayList(Subscription));
 
@@ -267,22 +270,28 @@ pub fn Subscribers(comptime T: type) type {
         }
 
         pub fn subscribe(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback(T)) !void {
+            return self.subscribeSession(topic, stream, func, null);
+        }
+
+        pub fn subscribeSession(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback(T), session: SessionType) !void {
             self.mutex.lock();
             defer self.mutex.unlock();
 
             // on first subscription, try to write the output first
             // if it works, then we add them to the subscriber list
-            std.debug.print("calling the initial subscribe callback function {} for topic {s} on stream {d}\n", .{ func, topic, stream.handle });
-            @call(.auto, func, .{ self.app, stream }) catch |err| {
+            std.debug.print("calling the initial subscribe callback function for topic {s} on stream {d}\n", .{ topic, stream.handle });
+            @call(.auto, func, .{ self.app, stream, session }) catch |err| {
                 stream.close();
                 return err;
             };
-            std.debug.print("done callback\n", .{});
 
-            const new_sub = Subscription{
+            var new_sub = Subscription{
                 .stream = stream,
                 .action = func,
             };
+            if (session) |sv| {
+                new_sub.session = try self.gpa.dupe(u8, sv);
+            }
             if (self.subs.getPtr(topic)) |subs| {
                 try subs.append(new_sub);
             } else {
@@ -293,32 +302,61 @@ pub fn Subscribers(comptime T: type) type {
 
             std.debug.print("Updated subs on topic {s} :\n", .{topic});
             for (self.subs.get(topic).?.items, 0..) |s, ii| {
-                std.debug.print("  {d} - {any}\n", .{ ii, s.stream });
+                std.debug.print("  {d} - {any} Session {?s}\n", .{ ii, s.stream, s.session });
             }
         }
 
         pub fn publish(self: *Self, topic: []const u8) !void {
+            return self.publishSession(topic, null);
+        }
+
+        pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            std.debug.print("publish on topic {s}\n", .{topic});
+            std.debug.print("publish on topic {s} for session {?s}\n", .{ topic, session });
             if (self.subs.getPtr(topic)) |subs| {
                 // traverse the list backwards, so its safe to drop elements during the traversal
                 var i: usize = subs.items.len;
                 while (i > 0) {
                     i -= 1;
                     var sub = subs.items[i];
-                    std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
-                    @call(.auto, sub.action, .{ self.app, sub.stream }) catch |err| {
-                        sub.stream.close();
-                        _ = subs.swapRemove(i);
-                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
-                    };
+                    if (sub.session == null) {
+                        // we publish everything, without passing a session value
+                        std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
+                        @call(.auto, sub.action, .{ self.app, sub.stream, null }) catch |err| {
+                            sub.stream.close();
+                            _ = subs.swapRemove(i);
+                            std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                        };
+                    } else {
+                        if (session) |sv| {
+                            // only publish subs where the session value matches what we ask for
+                            if (sub.session) |ss| {
+                                if (std.mem.eql(u8, sv, ss)) {
+                                    std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
+                                    @call(.auto, sub.action, .{ self.app, sub.stream, ss }) catch |err| {
+                                        sub.stream.close();
+                                        _ = subs.swapRemove(i);
+                                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                                    };
+                                }
+                            }
+                        } else {
+                            // publish all
+                            std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
+                            @call(.auto, sub.action, .{ self.app, sub.stream, sub.session }) catch |err| {
+                                sub.stream.close();
+                                _ = subs.swapRemove(i);
+                                std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                            };
+                        }
+                    }
                 }
 
                 std.debug.print("Remaining subs on topic {s} :\n", .{topic});
                 for (subs.items, 0..) |s, ii| {
-                    std.debug.print("  {d} - {any}\n", .{ ii, s.stream });
+                    std.debug.print("  {d} - {any} Session {?s}\n", .{ ii, s.stream, s.session });
                 }
             }
         }
@@ -329,7 +367,7 @@ pub fn Callback(comptime ctx: type) type {
     if (ctx == void) {
         return *const fn (std.net.Stream) anyerror!void;
     }
-    return *const fn (ctx, std.net.Stream) anyerror!void;
+    return *const fn (ctx, std.net.Stream, SessionType) anyerror!void;
 }
 
 const std = @import("std");

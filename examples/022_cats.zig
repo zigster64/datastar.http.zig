@@ -39,18 +39,56 @@ const Cat = struct {
 
 pub const Cats = std.ArrayList(Cat);
 
+pub const SortType = enum {
+    id,
+    low,
+    high,
+
+    pub fn fromString(s: []const u8) SortType {
+        if (std.mem.eql(u8, s, "low")) return .low;
+        if (std.mem.eql(u8, s, "high")) return .high;
+        return .id;
+    }
+};
+
+pub const SessionPrefs = struct {
+    sort: SortType = .id,
+};
+
 pub const App = struct {
     gpa: Allocator,
     cats: Cats,
     mutex: std.Thread.Mutex,
+    next_session_id: usize = 1,
     subscribers: ?datastar.Subscribers(*App) = null,
+    sessions: std.StringHashMap(SessionPrefs),
+    last_sort: SortType = .id,
 
     pub fn init(gpa: Allocator) !App {
         return .{
             .gpa = gpa,
             .mutex = .{},
             .cats = try createCats(gpa),
+            .sessions = std.StringHashMap(SessionPrefs).init(gpa),
         };
+    }
+
+    pub fn newSessionID(app: *App) !usize {
+        app.mutex.lock();
+        defer app.mutex.unlock();
+        const s = app.next_session_id;
+        app.next_session_id += 1;
+
+        const session_id = try std.fmt.allocPrint(app.gpa, "{d}", .{s});
+        try app.sessions.put(session_id, .{});
+
+        std.debug.print("Sessions :\n", .{});
+        var it = app.sessions.keyIterator();
+        while (it.next()) |k| {
+            std.debug.print("K {s}\n", .{k});
+        }
+
+        return s;
     }
 
     pub fn enableSubscriptions(app: *App) !void {
@@ -60,6 +98,34 @@ pub const App = struct {
     pub fn deinit(app: *App) void {
         app.streams.deinit();
         app.cats.deinit();
+        app.sessions.deinit();
+    }
+
+    fn catSortID(_: void, cat1: Cat, cat2: Cat) bool {
+        return cat1.id < cat2.id;
+    }
+
+    fn catSortLow(_: void, cat1: Cat, cat2: Cat) bool {
+        if (cat1.bid == cat2.bid) return cat1.id < cat2.id;
+        return cat1.bid < cat2.bid;
+    }
+
+    fn catSortHigh(_: void, cat1: Cat, cat2: Cat) bool {
+        if (cat1.bid == cat2.bid) return cat1.id < cat2.id;
+        return cat1.bid > cat2.bid;
+    }
+
+    pub fn sortCats(app: *App, sort: SortType) void {
+        std.debug.print("want to sort cats from {} to {}\n", .{ app.last_sort, sort });
+        if (app.last_sort == sort) return;
+
+        switch (sort) {
+            .id => std.sort.block(Cat, app.cats.items, {}, catSortID),
+            .low => std.sort.block(Cat, app.cats.items, {}, catSortLow),
+            .high => std.sort.block(Cat, app.cats.items, {}, catSortHigh),
+        }
+        app.last_sort = sort;
+        std.debug.print("converted to new sort {}\n", .{sort});
     }
 
     // convenience function
@@ -67,23 +133,35 @@ pub const App = struct {
         try app.subscribers.?.subscribe(topic, stream, callback);
     }
 
+    pub fn subscribeSession(app: *App, topic: []const u8, stream: std.net.Stream, callback: anytype, session: ?[]const u8) !void {
+        try app.subscribers.?.subscribeSession(topic, stream, callback, session);
+    }
+
     // convenience function
     pub fn publish(app: *App, topic: []const u8) !void {
         try app.subscribers.?.publish(topic);
     }
 
-    pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
+    pub fn publishSession(app: *App, topic: []const u8, session: []const u8) !void {
+        try app.subscribers.?.publishSession(topic, session);
+    }
+
+    pub fn publishCatList(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
             logz.info().string("event", "publishCatList").int("elapsed (μs)", t2 - t1).log();
         }
 
+        std.debug.print("publishCatList with session {?s}\n", .{session});
+
         // Update the HTML in the correct order
         var msg = datastar.patchElements(stream);
         defer msg.end();
 
-        // UGLY - doing very manual updates on the signals array below ... ok for demo with only 6 cats, but dont do this in real life please
+        // TODO - this is uneccessarily ugly, but its still quick, so nobody is going to care
+        // sort by id first to get all the bid signals correct
+        app.sortCats(.id);
         var w = msg.writer();
         try w.print(
             \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
@@ -96,6 +174,13 @@ pub const App = struct {
             app.cats.items[5].bid,
         });
 
+        if (session) |s| {
+            // then re-sort them if its different to id order to get the cards right
+            if (app.sessions.get(s)) |session_prefs| {
+                std.debug.print("got session prefs {}\n", .{session_prefs});
+                app.sortCats(session_prefs.sort);
+            }
+        }
         for (app.cats.items) |cat| {
             try cat.render(w);
         }
