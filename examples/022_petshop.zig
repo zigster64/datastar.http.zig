@@ -126,6 +126,7 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     std.debug.print("new bid {}\n", .{new_bid});
 
     app.cats.items[id].bid = new_bid;
+    app.cats.items[id].ts = std.time.nanoTimestamp();
 
     // update any screens subscribed to "cats"
     try app.publish("cats");

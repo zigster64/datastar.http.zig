@@ -14,29 +14,6 @@
     code {
       white-space: pre-line;
     }
-
-    ::view-transition-old(*),
-    ::view-transition-new(*) {
-      /* Set a longer duration for the animation */
-      animation-duration: 900ms;
-      animation-timing-function: ease-in-out;
-    }
-
-    /* You can add your custom animations here too */
-    @keyframes slide-from-right {
-      from {
-        transform: translateX(30px);
-        opacity: 0;
-      }
-    }
-
-    .card {
-      view-transition-name: card-transition;
-    }
-
-    ::view-transition-new(card-transition) {
-      animation: slide-from-right 800ms ease-out;
-    }
   </style>
 </head>
 
@@ -50,7 +27,7 @@
         Sessions</span>
       <a href="http://data-star.dev" target="_">
         <img class="w-12 sm:w-24"
-          src="https://cdn.discordapp.com/attachments/1299042042826981548/1360970327311515688/rocket.gif?ex=6875af23&is=68745da3&hm=3eda79058818407ab6941de710c75f8a3c5715dee8ccc60da40726b33261a180">
+          src="https://camo.githubusercontent.com/41305ad22f4e9a19afaee1aaa6d51dd6392894aa80bd3423633b89baccde8d38/68747470733a2f2f646174612d737461722e6465762f7374617469632f696d616765732f726f636b65742d353132783531322e706e67">
       </a>
     </div>
     <div class="avatar">
@@ -73,6 +50,7 @@
       <option value="id" selected>Sort by ID</option>
       <option value="low">Price - Lowest to Highest</option>
       <option value="high">Price - Highest to Lowest</option>
+      <option value="recent">Most Recent Bid</option>
     </select>
   </div>
 
