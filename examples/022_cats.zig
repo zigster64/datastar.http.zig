@@ -10,6 +10,7 @@ const Cat = struct {
     name: []const u8,
     img: []const u8,
     bid: usize = 0,
+    ts: i128 = 0,
 
     pub fn render(cat: Cat, w: anytype) !void {
         try w.print(
@@ -43,10 +44,12 @@ pub const SortType = enum {
     id,
     low,
     high,
+    recent,
 
     pub fn fromString(s: []const u8) SortType {
         if (std.mem.eql(u8, s, "low")) return .low;
         if (std.mem.eql(u8, s, "high")) return .high;
+        if (std.mem.eql(u8, s, "recent")) return .recent;
         return .id;
     }
 };
@@ -115,6 +118,11 @@ pub const App = struct {
         return cat1.bid > cat2.bid;
     }
 
+    fn catSortRecent(_: void, cat1: Cat, cat2: Cat) bool {
+        if (cat1.ts == cat2.ts) return cat1.id < cat2.id;
+        return cat1.ts > cat2.ts;
+    }
+
     pub fn sortCats(app: *App, sort: SortType) void {
         if (app.last_sort == sort) return;
 
@@ -122,6 +130,7 @@ pub const App = struct {
             .id => std.sort.block(Cat, app.cats.items, {}, catSortID),
             .low => std.sort.block(Cat, app.cats.items, {}, catSortLow),
             .high => std.sort.block(Cat, app.cats.items, {}, catSortHigh),
+            .recent => std.sort.block(Cat, app.cats.items, {}, catSortRecent),
         }
         app.last_sort = sort;
     }

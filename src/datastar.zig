@@ -263,6 +263,9 @@ pub fn Subscribers(comptime T: type) type {
             for (self.subs) |s| {
                 for (s) |sub| {
                     sub.stream.close() catch {};
+                    if (sub.session != null) {
+                        self.gpa.free(sub.session);
+                    }
                 }
                 s.deinit();
             }
@@ -290,6 +293,9 @@ pub fn Subscribers(comptime T: type) type {
                 .action = func,
             };
             if (session) |sv| {
+                // we need to dupe the session passed in, because its often just a stack variable
+                // pay careful attention to freeing this dupe whenever the session is terminated
+                // which can happen during publish and it detects that the connection has closed
                 new_sub.session = try self.gpa.dupe(u8, sv);
             }
             if (self.subs.getPtr(topic)) |subs| {
@@ -337,6 +343,7 @@ pub fn Subscribers(comptime T: type) type {
                                     std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
                                     @call(.auto, sub.action, .{ self.app, sub.stream, ss }) catch |err| {
                                         sub.stream.close();
+                                        if (sub.session) |subsession| self.gpa.free(subsession);
                                         _ = subs.swapRemove(i);
                                         std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
                                     };
@@ -347,6 +354,7 @@ pub fn Subscribers(comptime T: type) type {
                             std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
                             @call(.auto, sub.action, .{ self.app, sub.stream, sub.session }) catch |err| {
                                 sub.stream.close();
+                                if (sub.session) |subsession| self.gpa.free(subsession);
                                 _ = subs.swapRemove(i);
                                 std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
                             };
