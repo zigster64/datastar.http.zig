@@ -51,7 +51,7 @@ pub fn build(b: *std.Build) void {
                     .optimize = optimize,
                 }),
             });
-            exe.root_module.addImport("datastar.httpz", datastar_httpz_module);
+            exe.root_module.addImport("datastar", datastar_httpz_module);
 
             // add some 3rd party deps to get the app working
             exe.root_module.addImport("httpz", httpz_module.module("httpz"));

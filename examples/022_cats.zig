@@ -2,7 +2,7 @@ const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
 const zts = @import("zts");
-const datastar = @import("datastar.httpz");
+const datastar = @import("datastar");
 const Allocator = std.mem.Allocator;
 
 const Cat = struct {
