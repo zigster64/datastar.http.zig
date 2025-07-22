@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     };
 
-    const datastar_httpz_module = b.addModule("datastar.httpz", .{
+    const datastar_httpz_module = b.addModule("datastar", .{
         .root_source_file = b.path("src/datastar.zig"),
         .target = target,
     });
