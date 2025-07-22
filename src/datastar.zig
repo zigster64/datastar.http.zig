@@ -210,7 +210,7 @@ pub const Message = struct {
     }
 };
 
-pub fn readSignals(comptime T: type, req: *httpz.Request) !T {
+pub fn readSignals(comptime T: type, req: anytype) !T {
     switch (req.method) {
         .GET => {
             const query = try req.query();
@@ -379,5 +379,4 @@ pub fn Callback(comptime ctx: type) type {
 }
 
 const std = @import("std");
-const httpz = @import("httpz");
 const Allocator = std.mem.Allocator;
