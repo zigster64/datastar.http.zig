@@ -22,7 +22,7 @@ pub fn main() !void {
     var server = try httpz.Server(*App).init(allocator, .{
         .port = PORT,
         .address = "0.0.0.0",
-    }, &app);
+    }, app);
     defer {
         // clean shutdown
         server.stop();

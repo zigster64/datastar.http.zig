@@ -63,17 +63,20 @@ pub const App = struct {
     cats: Cats,
     mutex: std.Thread.Mutex,
     next_session_id: usize = 1,
-    subscribers: ?datastar.Subscribers(*App) = null,
+    subscribers: datastar.Subscribers(*App),
     sessions: std.StringHashMap(SessionPrefs),
     last_sort: SortType = .id,
 
-    pub fn init(gpa: Allocator) !App {
-        return .{
+    pub fn init(gpa: Allocator) !*App {
+        const app = try gpa.create(App);
+        app.* = .{
             .gpa = gpa,
             .mutex = .{},
             .cats = try createCats(gpa),
             .sessions = std.StringHashMap(SessionPrefs).init(gpa),
+            .subscribers = try datastar.Subscribers(*App).init(gpa, app),
         };
+        return app;
     }
 
     pub fn newSessionID(app: *App) !usize {
@@ -102,6 +105,7 @@ pub const App = struct {
         app.streams.deinit();
         app.cats.deinit();
         app.sessions.deinit();
+        app.gpa.destroy(app);
     }
 
     fn catSortID(_: void, cat1: Cat, cat2: Cat) bool {
@@ -137,20 +141,20 @@ pub const App = struct {
 
     // convenience function
     pub fn subscribe(app: *App, topic: []const u8, stream: std.net.Stream, callback: anytype) !void {
-        try app.subscribers.?.subscribe(topic, stream, callback);
+        try app.subscribers.subscribe(topic, stream, callback);
     }
 
     pub fn subscribeSession(app: *App, topic: []const u8, stream: std.net.Stream, callback: anytype, session: ?[]const u8) !void {
-        try app.subscribers.?.subscribeSession(topic, stream, callback, session);
+        try app.subscribers.subscribeSession(topic, stream, callback, session);
     }
 
     // convenience function
     pub fn publish(app: *App, topic: []const u8) !void {
-        try app.subscribers.?.publish(topic);
+        try app.subscribers.publish(topic);
     }
 
     pub fn publishSession(app: *App, topic: []const u8, session: []const u8) !void {
-        try app.subscribers.?.publishSession(topic, session);
+        try app.subscribers.publishSession(topic, session);
     }
 
     pub fn publishCatList(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {

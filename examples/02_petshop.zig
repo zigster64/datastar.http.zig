@@ -16,12 +16,12 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     var app = try App.init(allocator);
-    try app.enableSubscriptions();
+    defer app.deinit();
 
     var server = try httpz.Server(*App).init(allocator, .{
         .port = PORT,
         .address = "0.0.0.0",
-    }, &app);
+    }, app);
     defer {
         // clean shutdown
         server.stop();

@@ -43,33 +43,32 @@ pub const App = struct {
     gpa: Allocator,
     cats: Cats,
     mutex: std.Thread.Mutex,
-    subscribers: ?datastar.Subscribers(*App) = null,
+    subscribers: datastar.Subscribers(*App),
 
-    pub fn init(gpa: Allocator) !App {
-        return .{
+    pub fn init(gpa: Allocator) !*App {
+        const app = try gpa.create(App);
+        app.* = .{
             .gpa = gpa,
             .mutex = .{},
             .cats = try createCats(gpa),
+            .subscribers = try datastar.Subscribers(*App).init(gpa, app),
         };
-    }
-
-    pub fn enableSubscriptions(app: *App) !void {
-        app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
+        return app;
     }
 
     pub fn deinit(app: *App) void {
-        app.streams.deinit();
         app.cats.deinit();
+        app.gpa.destroy(app);
     }
 
     // convenience function
     pub fn subscribe(app: *App, topic: []const u8, stream: std.net.Stream, callback: anytype) !void {
-        try app.subscribers.?.subscribe(topic, stream, callback);
+        try app.subscribers.subscribe(topic, stream, callback);
     }
 
     // convenience function
     pub fn publish(app: *App, topic: []const u8) !void {
-        try app.subscribers.?.publish(topic);
+        try app.subscribers.publish(topic);
     }
 
     pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
