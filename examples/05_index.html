@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="napoleon">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Virtual Garden - DataStar Subscribe Function</title>
+  <script type="module"
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@release-candidate/bundles/datastar.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    pre,
+    code {
+      white-space: pre-line;
+    }
+		img {
+			image-rendering: pixelated;
+		}
+  </style>
+</head>
+
+<body class="bg-cyan-700">
+  <!-- Navbar -->
+  <div
+    class="navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <span class="btn btn-ghost text-xl text-white block md:hidden">Virtual Garden</span>
+      <span class="btn btn-ghost text-xl text-white hidden md:block">Virtual Garden - SSE Subscribe Functions</span>
+      <a href="http://data-star.dev" target="_">
+        <img class="w-12 sm:w-24"
+          src="https://camo.githubusercontent.com/41305ad22f4e9a19afaee1aaa6d51dd6392894aa80bd3423633b89baccde8d38/68747470733a2f2f646174612d737461722e6465762f7374617469632f696d616765732f726f636b65742d353132783531322e706e67">
+      </a>
+    </div>
+    <div class="avatar">
+      <div class="w-32 h-32 rounded-full">
+        <a href="https://github.com/zigster64/datastar.http.zig/blob/main/examples/02_petshop.zig" target="_">
+          <img src="https://avatars.githubusercontent.com/u/72305366?v=4">
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-sm mt-32 text-white ml-8">
+    <p>This demonstrates using basic pub/sub to easily construct pages with realtime updates</p>
+    <p>Load up multiple browser windows pointing to this page, and tend to the garden, watching it update in each session!</p>
+  </div>
+  <div id="plant-list" data-on-load="@get('/plants')">... Loading Plants</div>
+	<div id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center" data-on-click="console.log('selected tool!');">
+		<img class="w-4/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fbucket-with-water-pixel-art-your-needs_1032646-401.jpg%3Fw%3D2000&f=1&nofb=1&ipt=19bcd3cd84848c4196c8ab1b90ed34b0ba3a5c79e12ae93ab5d14c01d3d91723">
+		<img class="w-4/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fbucket-with-water-pixel-art-your-needs_1032646-401.jpg%3Fw%3D2000&f=1&nofb=1&ipt=19bcd3cd84848c4196c8ab1b90ed34b0ba3a5c79e12ae93ab5d14c01d3d91723">
+		<img class="w-4/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fbucket-with-water-pixel-art-your-needs_1032646-401.jpg%3Fw%3D2000&f=1&nofb=1&ipt=19bcd3cd84848c4196c8ab1b90ed34b0ba3a5c79e12ae93ab5d14c01d3d91723">
+	</div>
+</body>
+
+</html>
