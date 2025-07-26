@@ -39,17 +39,16 @@
       </div>
     </div>
   </div>
-
-  <div class="text-sm mt-32 text-white ml-8">
+  <div id="plant-list" data-on-load="@get('/plants')">... Loading Plants</div>
+	<div id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center" data-on-click="console.log('selected tool!');">
+		<img class="w-3/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimage.freepik.com%2Ffree-vector%2Fbucket-pixel-art_505135-35.jpg&f=1&nofb=1&ipt=192276e3bed91947cfee0a0e54738b254c8d1171a627d7b60d2afe530239f80c">
+		<img class="w-3/12 h-full" src="https://t3.ftcdn.net/jpg/15/68/38/56/240_F_1568385603_TbqosPnRViosIviW48X33bYFLwWBL9qT.jpg">
+		<img class="w-3/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fstatic.vecteezy.com%2Fsystem%2Fresources%2Fpreviews%2F036%2F022%2F207%2Foriginal%2Fpixel-art-illustration-sun-pixelated-yellow-sun-yellow-bright-sun-pixelated-for-the-pixel-art-game-and-icon-for-website-and-video-game-old-school-retro-free-vector.jpg&f=1&nofb=1&ipt=3df65989236004f1acbca1b81b8ce37da4c0bce55a339aa71348003d8994a819">
+	</div>
+  <div class="text-md mt-12 text-white m-auto">
     <p>This demonstrates using basic pub/sub to easily construct pages with realtime updates</p>
     <p>Load up multiple browser windows pointing to this page, and tend to the garden, watching it update in each session!</p>
   </div>
-  <div id="plant-list" data-on-load="@get('/plants')">... Loading Plants</div>
-	<div id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center" data-on-click="console.log('selected tool!');">
-		<img class="w-4/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fbucket-with-water-pixel-art-your-needs_1032646-401.jpg%3Fw%3D2000&f=1&nofb=1&ipt=19bcd3cd84848c4196c8ab1b90ed34b0ba3a5c79e12ae93ab5d14c01d3d91723">
-		<img class="w-4/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fbucket-with-water-pixel-art-your-needs_1032646-401.jpg%3Fw%3D2000&f=1&nofb=1&ipt=19bcd3cd84848c4196c8ab1b90ed34b0ba3a5c79e12ae93ab5d14c01d3d91723">
-		<img class="w-4/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimg.freepik.com%2Fpremium-vector%2Fbucket-with-water-pixel-art-your-needs_1032646-401.jpg%3Fw%3D2000&f=1&nofb=1&ipt=19bcd3cd84848c4196c8ab1b90ed34b0ba3a5c79e12ae93ab5d14c01d3d91723">
-	</div>
 </body>
 
 </html>

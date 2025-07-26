@@ -6,8 +6,6 @@ const datastar = @import("datastar");
 const App = @import("05_plants.zig").App;
 const homepage = @embedFile("05_index.html");
 
-const image = @embedFile("./assets/fantasy_crops/tile000.png");
-
 const Allocator = std.mem.Allocator;
 
 const PORT = 8085;
@@ -25,6 +23,9 @@ pub fn main() !void {
         .port = PORT,
         .address = "0.0.0.0",
     }, app);
+
+    const game_t = try std.Thread.spawn(.{}, updateLoop, .{app});
+    defer game_t.join();
 
     defer { // clean shutdown
         server.stop();
@@ -57,6 +58,13 @@ pub fn main() !void {
     try server.listen();
 }
 
+fn updateLoop(app: *App) !void {
+    while (true) {
+        try app.updatePlants();
+        std.Thread.sleep(std.time.ns_per_s);
+    }
+}
+
 fn postAsset(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     defer {
@@ -80,7 +88,6 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
         const t2 = std.time.microTimestamp();
         logz.info().string("event", "index").int("elapsed (μs)", t2 - t1).log();
     }
-
     res.content_type = .HTML;
     res.body = homepage;
 }
@@ -94,8 +101,7 @@ fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "plantsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const stream = try res.startEventStreamSync();
-
+    const stream: std.net.Stream = try res.startEventStreamSync();
     // DO NOT close - this stream stays open forever
     // and gets subscribed to "plants" update events
     try app.subscribe("plants", stream, App.publishPlantList);
@@ -110,7 +116,7 @@ fn postWater(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         logz.info().string("event", "postWater").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const id_param = req.param("id").?;
+    const id_param = req.param("plantid").?;
     const id = try std.fmt.parseInt(usize, id_param, 10);
 
     if (id < 0 or id >= app.plants.items.len) {
