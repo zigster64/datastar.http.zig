@@ -16,10 +16,17 @@
 		img {
 			image-rendering: pixelated;
 		}
+		* {
+			cursor: url('https://t3.ftcdn.net/jpg/15/68/38/56/240_F_1568385603_TbqosPnRViosIviW48X33bYFLwWBL9qT.jpg'),auto;
+		}
+		.selected {
+			border: 10px solid #88ff99;
+			border-radius: 10px;
+		}
   </style>
 </head>
 
-<body class="bg-cyan-700">
+<body class="bg-cyan-700" >
   <!-- Navbar -->
   <div
     class="navbar bg-sky-950 text-white shadow-md fixed top-0 left-0 right-0 z-50 h-32 flex items-center justify-between">
@@ -40,10 +47,10 @@
     </div>
   </div>
   <div id="plant-list" data-on-load="@get('/plants')">... Loading Plants</div>
-	<div id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center" data-on-click="console.log('selected tool!');">
-		<img class="w-3/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimage.freepik.com%2Ffree-vector%2Fbucket-pixel-art_505135-35.jpg&f=1&nofb=1&ipt=192276e3bed91947cfee0a0e54738b254c8d1171a627d7b60d2afe530239f80c">
-		<img class="w-3/12 h-full" src="https://t3.ftcdn.net/jpg/15/68/38/56/240_F_1568385603_TbqosPnRViosIviW48X33bYFLwWBL9qT.jpg">
-		<img class="w-3/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fstatic.vecteezy.com%2Fsystem%2Fresources%2Fpreviews%2F036%2F022%2F207%2Foriginal%2Fpixel-art-illustration-sun-pixelated-yellow-sun-yellow-bright-sun-pixelated-for-the-pixel-art-game-and-icon-for-website-and-video-game-old-school-retro-free-vector.jpg&f=1&nofb=1&ipt=3df65989236004f1acbca1b81b8ce37da4c0bce55a339aa71348003d8994a819">
+	<div data-signals="{watering: false, fertilizing: false, sunning: false}" id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center" data-on-click="console.log('selected tool!');">
+		<img data-on-click="$watering = !$watering;$fertilizing = false; $sunning = false;" data-class-selected="$watering" class="w-3/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fimage.freepik.com%2Ffree-vector%2Fbucket-pixel-art_505135-35.jpg&f=1&nofb=1&ipt=192276e3bed91947cfee0a0e54738b254c8d1171a627d7b60d2afe530239f80c">
+		<img data-on-click="$fertilizing = !$fertilizing;$watering = false; $sunning = false;" data-class-selected="$fertilizing" class="w-3/12 h-full" src="https://t3.ftcdn.net/jpg/15/68/38/56/240_F_1568385603_TbqosPnRViosIviW48X33bYFLwWBL9qT.jpg">
+		<img data-on-click="$sunning = !$sunning;$watering = false; $fertilizing = false;" data-class-selected="$sunning" class="w-3/12 h-full" src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fstatic.vecteezy.com%2Fsystem%2Fresources%2Fpreviews%2F036%2F022%2F207%2Foriginal%2Fpixel-art-illustration-sun-pixelated-yellow-sun-yellow-bright-sun-pixelated-for-the-pixel-art-game-and-icon-for-website-and-video-game-old-school-retro-free-vector.jpg&f=1&nofb=1&ipt=3df65989236004f1acbca1b81b8ce37da4c0bce55a339aa71348003d8994a819">
 	</div>
   <div class="text-md mt-12 text-white m-auto">
     <p>This demonstrates using basic pub/sub to easily construct pages with realtime updates</p>
