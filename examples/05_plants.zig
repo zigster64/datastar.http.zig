@@ -14,42 +14,117 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
 const Plant = struct {
     id: u8,
     name: []const u8,
-    img_name: []const u8,
+    image_base_index: u32 = 0,
 
-    image_base_index: u32,
-    state: GrowthState,
-    // Balance stats that prefer to be around 0.5 and dislike being arount 0 or 1
-    // TODO make plants with their own preferences for each stat and unique depletion rates
-    water_level: f32 = 0.5, // Water saturation, depletes over time based on sun exposure, increased by bucket
-    soil_quality: f32 = 0.5, // Abstracted soil level, refers to ph and nutrient levels, depletes over time, increased by fertilizer
-    sun_level: f32 = 0.5, // Availability of sunlight, static but increases water loss
+    state: PlantState = .Alive,
+    growth_stage: GrowthStage = .Seedling,
+    growth_steps: u32 = 0,
+    stats: PlantStats = .{}, // Current Stats of plant, dynamic
+    desired_stats: PlantStats = .{}, // Desired status of plant, static
 
-    const imageFormatString = "./assets/tile{d:0>3}.png";
-
-    const GrowthState = enum {
+    // Balance stats that prefer to be around 0.5 and dislike being around 0 or 1
+    const PlantStats = struct {
+        water: f32 = 0.5, // Water saturation, depletes over time based on sun exposure, increased by bucket
+        ph: f32 = 0.5, // Abstracted soil level, refers to ph and nutrient levels, depletes over time, increased by fertilizer
+        sun: f32 = 0.5, // Availability of sunlight, static but increases water loss
+    };
+    const image_format_string = "./assets/tile{d:0>3}.png";
+    const PlantState = enum {
         Dead,
         Dying,
-        Sprouting,
-        Medium,
-        Full,
+        Alive,
+        Thriving,
     };
-    pub fn update(p: *Plant, gpa: Allocator) !void {
-        if (p.state == .Full) {
-            p.state = .Dead;
-        } else {
-            p.state = @enumFromInt(@intFromEnum(p.state) + 1);
+
+    const GrowthStage = enum {
+        Seedling,
+        Sprout,
+        Young,
+        Medium,
+        Adult,
+        Fruiting,
+    };
+    pub fn update(p: *Plant) !void {
+        // Update state based on stats and desired stats
+        switch (p.state) {
+            .Dead => {
+                return; // Nothing to do
+            },
+            .Dying => {
+                // Move to alive if conditions are met
+
+                const water_diff = @abs(p.desired_stats.water - p.stats.water);
+                const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
+                const sun_diff = @abs(p.desired_stats.sun - p.stats.sun);
+
+                if (water_diff < 0.3 and ph_diff < 0.3 and sun_diff < 0.3) {
+                    p.state = .Alive;
+                } else if (water_diff > 0.5 or ph_diff > 0.5 or sun_diff > 0.5) {
+                    p.state = .Dying;
+                }
+            },
+            .Alive => {
+                p.growth_steps += 1;
+
+                const water_diff = @abs(p.desired_stats.water - p.stats.water);
+                const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
+                const sun_diff = @abs(p.desired_stats.sun - p.stats.sun);
+
+                if (water_diff < 0.1 and ph_diff < 0.1 and sun_diff < 0.1) {
+                    p.state = .Thriving;
+                } else if (water_diff > 0.3 or ph_diff > 0.3 or sun_diff > 0.3) {
+                    p.state = .Dying;
+                }
+            },
+            .Thriving => {
+                p.growth_steps += 2;
+
+                const water_diff = @abs(p.desired_stats.water - p.stats.water);
+                const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
+                const sun_diff = @abs(p.desired_stats.sun - p.stats.sun);
+
+                if (water_diff > 0.1 or ph_diff > 0.1 or sun_diff > 0.1) {
+                    p.state = .Alive;
+                }
+            },
         }
-        p.img_name = try std.fmt.allocPrint(gpa, imageFormatString, .{p.image_base_index + @intFromEnum(p.state)});
+
+        // Update water
+        p.stats.water -= 0.01;
+
+        // Update ph
+        if (p.stats.ph < 0.5) {
+            p.stats.ph += 0.01;
+        } else {
+            p.stats.ph -= 0.01;
+        }
+
+        // Grow plant if it breaches the threshold of growth
+        if (p.growth_steps > 25 and p.growth_stage != .Fruiting) {
+            p.growth_stage = @enumFromInt(@intFromEnum(p.growth_stage) + 1);
+        }
+        std.debug.print("Plant stats: {{water: {d}, ph: {d}, sun: {d}}}", .{
+            p.stats.water,
+            p.stats.ph,
+            p.stats.sun,
+        });
     }
 
-    pub fn render(p: Plant, w: anytype) !void {
+    pub fn render(p: Plant, w: anytype, gpa: std.mem.Allocator) !void {
+        const img_name = try std.fmt.allocPrint(gpa, image_format_string, .{p.image_base_index + @intFromEnum(p.state)});
+        const img_class: []const u8 = switch (p.state) {
+            .Dead => "dead",
+            .Dying => "dying",
+            .Alive => "alive",
+            .Thriving => "thriving",
+        };
         try w.print(
             \\<div class="card w-6/12 h-11/12 bg-slate-300 card-lg shadow-sm m-auto mt-4">
             \\  <div class="card-body" id="plant-{[id]}">
             \\    <h2 class="card-title">#{[id]} {[name]s}</h2>
             \\    <div class="avatar">
-            \\      <div class="m-auto w-32 h-32 rounded-full">
-            \\        <img data-on-click="@post('/water/{[id]}')" src="{[img]s}">
+            \\      <div class="m-auto w-32 h-32 rounded-md">
+            \\        <img class="{[class]s}" data-on-click="@post('/water/{[id]}')" src="{[img]s}">
             \\      </div>
             \\    </div>
             \\  </div>
@@ -57,7 +132,8 @@ const Plant = struct {
         , .{
             .id = p.id,
             .name = p.name,
-            .img = p.img_name,
+            .img = img_name,
+            .class = img_class,
         });
     }
 };
@@ -123,7 +199,7 @@ pub const App = struct {
         });
 
         for (app.plants.items) |plant| {
-            try plant.render(w);
+            try plant.render(w, app.gpa);
         }
         try w.writeAll(
             \\</div>
@@ -132,7 +208,7 @@ pub const App = struct {
     pub fn updatePlants(self: *App) !void {
         std.debug.print("Updated plants!\n", .{});
         for (0..self.plants.items.len) |i| {
-            try self.plants.items[i].update(self.gpa);
+            try self.plants.items[i].update();
         }
         try self.publish("plants");
     }
@@ -143,30 +219,42 @@ fn initPlants(gpa: Allocator) !Plants {
     try plants.append(.{
         .id = 0,
         .name = "Tomato Plant",
-        .img_name = "./assets/tile000.png",
-        .state = .Sprouting,
         .image_base_index = 0,
+        .desired_stats = .{
+            .water = 0.5,
+            .ph = 0.5,
+            .sun = 0.5,
+        },
     });
     try plants.append(.{
         .id = 1,
         .name = "Onion Plant",
-        .img_name = "./assets/tile001.png",
-        .state = .Sprouting,
         .image_base_index = 7,
+        .desired_stats = .{
+            .water = 0.5,
+            .ph = 0.5,
+            .sun = 0.5,
+        },
     });
     try plants.append(.{
         .id = 2,
         .name = "Cactus Plant",
-        .img_name = "./assets/tile002.png",
-        .state = .Sprouting,
         .image_base_index = 14,
+        .desired_stats = .{
+            .water = 0.2,
+            .ph = 0.4,
+            .sun = 0.8,
+        },
     });
     try plants.append(.{
         .id = 3,
         .name = "Basil Plant",
-        .img_name = "./assets/tile003.png",
-        .state = .Sprouting,
         .image_base_index = 21,
+        .desired_stats = .{
+            .water = 0.7,
+            .ph = 0.8,
+            .sun = 0.5,
+        },
     });
     return plants;
 }

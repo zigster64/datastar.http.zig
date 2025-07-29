@@ -130,7 +130,7 @@ fn postWater(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     std.debug.print("Water {any}\n", .{signals.water});
     const water_qt = signals.water;
     std.debug.print("Watered plant {s} with water amount {d}\n", .{ app.plants.items[id].name, water_qt });
-    app.plants.items[id].water_level += water_qt;
+    app.plants.items[id].stats.water += water_qt;
 
     // update any screens subscribed to "plants"
     try app.publish("plants");
