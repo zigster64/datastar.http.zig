@@ -45,11 +45,12 @@ const Plant = struct {
         Fruiting,
     };
     pub fn update(p: *Plant) !void {
+        if (p.state == .Dead or p.growth_stage == .Fruiting) {
+            return;
+        }
         // Update state based on stats and desired stats
         switch (p.state) {
-            .Dead => {
-                return; // Nothing to do
-            },
+            .Dead => {},
             .Dying => {
                 // Move to alive if conditions are met
 
@@ -60,7 +61,7 @@ const Plant = struct {
                 if (water_diff < 0.3 and ph_diff < 0.3 and sun_diff < 0.3) {
                     p.state = .Alive;
                 } else if (water_diff > 0.5 or ph_diff > 0.5 or sun_diff > 0.5) {
-                    p.state = .Dying;
+                    p.state = .Dead;
                 }
             },
             .Alive => {
@@ -102,6 +103,7 @@ const Plant = struct {
         // Grow plant if it breaches the threshold of growth
         if (p.growth_steps > 25 and p.growth_stage != .Fruiting) {
             p.growth_stage = @enumFromInt(@intFromEnum(p.growth_stage) + 1);
+            p.growth_steps = 0;
         }
         std.debug.print("Plant stats: {{water: {d}, ph: {d}, sun: {d}}}", .{
             p.stats.water,
