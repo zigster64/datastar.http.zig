@@ -48,9 +48,7 @@ pub fn main() !void {
 
     router.get("/", index, .{});
     router.get("/plants", plantList, .{});
-    router.post("/water/:plantid", postWater, .{});
-    router.post("/sun/:plantid", postSun, .{});
-    router.post("/fertilize/:plantid", postFertilize, .{});
+    router.post("/planteffect/:plantid", postPlantEffect, .{});
     router.get("/assets/:assetname", postAsset, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
@@ -61,7 +59,7 @@ pub fn main() !void {
 fn updateLoop(app: *App) !void {
     while (true) {
         try app.updatePlants();
-        std.Thread.sleep(std.time.ns_per_s);
+        std.Thread.sleep(std.time.ns_per_s / 2.0);
     }
 }
 
@@ -107,13 +105,13 @@ fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     try app.subscribe("plants", stream, App.publishPlantList);
 }
 
-fn postWater(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
+fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     app.mutex.lock();
     defer {
         app.mutex.unlock();
         const t2 = std.time.microTimestamp();
-        logz.info().string("event", "postWater").int("elapsed (μs)", t2 - t1).log();
+        logz.info().string("event", "postPlantEffect").int("elapsed (μs)", t2 - t1).log();
     }
 
     const id_param = req.param("plantid").?;
@@ -123,25 +121,21 @@ fn postWater(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         return error.InvalidID;
     }
 
-    const Watering = struct {
-        water: f32,
+    const Hand = struct {
+        hand: []const u8,
     };
-    const signals = try datastar.readSignals(Watering, req);
-    std.debug.print("Water {any}\n", .{signals.water});
-    const water_qt = signals.water;
-    std.debug.print("Watered plant {s} with water amount {d}\n", .{ app.plants.items[id].name, water_qt });
-    app.plants.items[id].stats.water += water_qt;
+    const signals = try datastar.readSignals(Hand, req);
+    std.debug.print("Item {s}\n", .{signals.hand});
+    if (std.mem.eql(u8, signals.hand, "watering")) {
+        app.plants.items[id].stats.water += 0.1;
+    } else if (std.mem.eql(u8, signals.hand, "fertilizing")) {
+        app.plants.items[id].stats.ph += 0.1;
+    } else if (std.mem.eql(u8, signals.hand, "sunning")) {
+        app.plants.items[id].stats.sun += 0.1;
+    } else {
+        std.debug.print("Found other hand item: {s}", .{signals.hand});
+    }
 
     // update any screens subscribed to "plants"
     try app.publish("plants");
-}
-
-fn postSun(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
-    _ = app;
-    _ = req;
-}
-
-fn postFertilize(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
-    _ = app;
-    _ = req;
 }

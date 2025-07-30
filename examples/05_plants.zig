@@ -1,4 +1,5 @@
 const std = @import("std");
+const Stream = std.net.Stream;
 const httpz = @import("httpz");
 const logz = @import("logz");
 const zts = @import("zts");
@@ -42,6 +43,7 @@ const Plant = struct {
         Young,
         Medium,
         Adult,
+        Elder,
         Fruiting,
     };
     pub fn update(p: *Plant) !void {
@@ -53,7 +55,6 @@ const Plant = struct {
             .Dead => {},
             .Dying => {
                 // Move to alive if conditions are met
-
                 const water_diff = @abs(p.desired_stats.water - p.stats.water);
                 const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
                 const sun_diff = @abs(p.desired_stats.sun - p.stats.sun);
@@ -105,7 +106,7 @@ const Plant = struct {
             p.growth_stage = @enumFromInt(@intFromEnum(p.growth_stage) + 1);
             p.growth_steps = 0;
         }
-        std.debug.print("Plant stats: {{water: {d}, ph: {d}, sun: {d}}}", .{
+        std.debug.print("Plant stats: {{water: {d}, ph: {d}, sun: {d}}}\n", .{
             p.stats.water,
             p.stats.ph,
             p.stats.sun,
@@ -113,7 +114,7 @@ const Plant = struct {
     }
 
     pub fn render(p: Plant, w: anytype, gpa: std.mem.Allocator) !void {
-        const img_name = try std.fmt.allocPrint(gpa, image_format_string, .{p.image_base_index + @intFromEnum(p.state)});
+        const img_name = try std.fmt.allocPrint(gpa, image_format_string, .{p.image_base_index + @intFromEnum(p.growth_stage)});
         const img_class: []const u8 = switch (p.state) {
             .Dead => "dead",
             .Dying => "dying",
@@ -126,9 +127,13 @@ const Plant = struct {
             \\    <h2 class="card-title">#{[id]} {[name]s}</h2>
             \\    <div class="avatar">
             \\      <div class="m-auto w-32 h-32 rounded-md">
-            \\        <img class="{[class]s}" data-on-click="@post('/water/{[id]}')" src="{[img]s}">
+            \\        <img class="{[class]s}" data-on-click="@post('/planteffect/{[id]}')" data-on-contextmenu="console.log('rclick');" src="{[img]s}">
             \\      </div>
             \\    </div>
+            \\    <pre>
+            \\      <div> water: {[water]}, ph: {[ph]}, sun: {[sun]}
+            \\      <div> growth: {[steps]} / 25 </pre>
+            \\    </pre>
             \\  </div>
             \\</div>
         , .{
@@ -136,6 +141,10 @@ const Plant = struct {
             .name = p.name,
             .img = img_name,
             .class = img_class,
+            .water = p.stats.water,
+            .ph = p.stats.ph,
+            .sun = p.stats.sun,
+            .steps = p.growth_steps,
         });
     }
 };
@@ -169,7 +178,7 @@ pub const App = struct {
     }
 
     // convenience function
-    pub fn subscribe(app: *App, topic: []const u8, stream: std.net.Stream, callback: anytype) !void {
+    pub fn subscribe(app: *App, topic: []const u8, stream: Stream, callback: anytype) !void {
         try app.subscribers.?.subscribe(topic, stream, callback);
     }
 
@@ -178,7 +187,7 @@ pub const App = struct {
         try app.subscribers.?.publish(topic);
     }
 
-    pub fn publishPlantList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
+    pub fn publishPlantList(app: *App, stream: Stream, _: ?[]const u8) !void {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
