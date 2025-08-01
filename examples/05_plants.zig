@@ -13,7 +13,6 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
 }
 
 const Plant = struct {
-    id: u8,
     name: []const u8,
     image_base_index: u32 = 0,
 
@@ -92,6 +91,7 @@ const Plant = struct {
         }
 
         // Update water
+        std.debug.print("Updating stats...\n", .{});
         p.stats.water -= 0.01;
 
         // Update ph
@@ -113,7 +113,7 @@ const Plant = struct {
         });
     }
 
-    pub fn render(p: Plant, w: anytype, gpa: std.mem.Allocator) !void {
+    pub fn render(p: Plant, id: usize, w: anytype, gpa: std.mem.Allocator) !void {
         const img_name = try std.fmt.allocPrint(gpa, image_format_string, .{p.image_base_index + @intFromEnum(p.growth_stage)});
         const img_class: []const u8 = switch (p.state) {
             .Dead => "dead",
@@ -122,12 +122,12 @@ const Plant = struct {
             .Thriving => "thriving",
         };
         try w.print(
-            \\<div class="card w-6/12 h-11/12 bg-slate-300 card-lg shadow-sm m-auto mt-4">
+            \\<div class="card w-6/12 h-11/12 bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
             \\  <div class="card-body" id="plant-{[id]}">
             \\    <h2 class="card-title">#{[id]} {[name]s}</h2>
             \\    <div class="avatar">
             \\      <div class="m-auto w-32 h-32 rounded-md">
-            \\        <img class="{[class]s}" data-on-click="@post('/planteffect/{[id]}')" data-on-contextmenu="console.log('rclick');" src="{[img]s}">
+            \\        <img class="{[class]s}" data-on-click="@post('/planteffect/{[id]}')" src="{[img]s}">
             \\      </div>
             \\    </div>
             \\    <pre>
@@ -137,7 +137,7 @@ const Plant = struct {
             \\  </div>
             \\</div>
         , .{
-            .id = p.id,
+            .id = id,
             .name = p.name,
             .img = img_name,
             .class = img_class,
@@ -149,11 +149,69 @@ const Plant = struct {
     }
 };
 
-pub const Plants = std.ArrayList(Plant);
+const CarrotConfig = Plant{
+    .name = "Carrot",
+    .image_base_index = 0,
+    .desired_stats = .{
+        .water = 0.4,
+        .ph = 0.4,
+        .sun = 0.4,
+    },
+    .stats = .{
+        .water = 0.4,
+        .ph = 0.4,
+        .sun = 0.4,
+    },
+};
+
+const RadishConfig = Plant{
+    .name = "Radish",
+    .image_base_index = 0,
+    .desired_stats = .{
+        .water = 0.5,
+        .ph = 0.8,
+        .sun = 0.2,
+    },
+    .stats = .{
+        .water = 0.5,
+        .ph = 0.8,
+        .sun = 0.2,
+    },
+};
+
+const GourdConfig = Plant{
+    .name = "Gourd",
+    .image_base_index = 0,
+    .desired_stats = .{
+        .water = 0.2,
+        .ph = 0.3,
+        .sun = 0.6,
+    },
+    .stats = .{
+        .water = 0.2,
+        .ph = 0.3,
+        .sun = 0.6,
+    },
+};
+
+const TomatoConfig = Plant{
+    .name = "Tomato",
+    .image_base_index = 0,
+    .desired_stats = .{
+        .water = 0.8,
+        .ph = 0.3,
+        .sun = 0.6,
+    },
+    .stats = .{
+        .water = 0.8,
+        .ph = 0.3,
+        .sun = 0.6,
+    },
+};
 
 pub const App = struct {
     gpa: Allocator,
-    plants: Plants,
+    plants: [4]?Plant,
     mutex: std.Thread.Mutex,
     subscribers: ?datastar.Subscribers(*App) = null,
 
@@ -162,7 +220,12 @@ pub const App = struct {
         app.* = .{
             .gpa = gpa,
             .mutex = .{},
-            .plants = try initPlants(gpa),
+            .plants = .{
+                RadishConfig,
+                CarrotConfig,
+                TomatoConfig,
+                GourdConfig,
+            },
             .subscribers = try datastar.Subscribers(*App).init(gpa, app),
         };
         return app;
@@ -173,7 +236,6 @@ pub const App = struct {
     }
 
     pub fn deinit(app: *App) void {
-        app.plants.deinit();
         app.gpa.destroy(app);
     }
 
@@ -198,74 +260,35 @@ pub const App = struct {
         var msg = datastar.patchElements(stream);
         defer msg.end();
 
-        // UGLY - doing very manual updates on the signals array below ... ok for demo with only 6 plants, but dont do this in real life please
         var w = msg.writer();
         try w.print(
-            \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 mt-32 h-8/12" data-signals="{{ states: [{d},{d},{d},{d}] }}">
-        , .{
-            @intFromEnum(app.plants.items[0].state),
-            @intFromEnum(app.plants.items[1].state),
-            @intFromEnum(app.plants.items[2].state),
-            @intFromEnum(app.plants.items[3].state),
-        });
+            \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 mt-32 h-8/12">
+        , .{});
 
-        for (app.plants.items) |plant| {
-            try plant.render(w, app.gpa);
+        // std.debug.print("Plant states are :\n {}\n{}\n{}\n{}\n\n", .{ app.plants[0].?, app.plants[1].?, app.plants[2].?, app.plants[3].? });
+        for (0..4) |i| {
+            if (app.plants[i]) |p| {
+                try p.render(i, w, app.gpa);
+            } else {
+                try w.print(
+                    \\<div class="card w-6/12 h-11/12 bg-yellow-800 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
+                    \\  <div class="card-body" id="plant-{[id]}">
+                    \\  </div>
+                    \\</div>
+                , .{ .id = i });
+            }
         }
         try w.writeAll(
             \\</div>
         );
     }
-    pub fn updatePlants(self: *App) !void {
+    pub fn updatePlants(app: *App) !void {
         std.debug.print("Updated plants!\n", .{});
-        for (0..self.plants.items.len) |i| {
-            try self.plants.items[i].update();
+        for (0..4) |i| {
+            if (app.plants[i]) |*p| {
+                try p.update();
+            }
         }
-        try self.publish("plants");
+        try app.publish("plants");
     }
 };
-
-fn initPlants(gpa: Allocator) !Plants {
-    var plants = Plants.init(gpa);
-    try plants.append(.{
-        .id = 0,
-        .name = "Tomato Plant",
-        .image_base_index = 0,
-        .desired_stats = .{
-            .water = 0.5,
-            .ph = 0.5,
-            .sun = 0.5,
-        },
-    });
-    try plants.append(.{
-        .id = 1,
-        .name = "Onion Plant",
-        .image_base_index = 7,
-        .desired_stats = .{
-            .water = 0.5,
-            .ph = 0.5,
-            .sun = 0.5,
-        },
-    });
-    try plants.append(.{
-        .id = 2,
-        .name = "Cactus Plant",
-        .image_base_index = 14,
-        .desired_stats = .{
-            .water = 0.2,
-            .ph = 0.4,
-            .sun = 0.8,
-        },
-    });
-    try plants.append(.{
-        .id = 3,
-        .name = "Basil Plant",
-        .image_base_index = 21,
-        .desired_stats = .{
-            .water = 0.7,
-            .ph = 0.8,
-            .sun = 0.5,
-        },
-    });
-    return plants;
-}

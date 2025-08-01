@@ -59,7 +59,7 @@ pub fn main() !void {
 fn updateLoop(app: *App) !void {
     while (true) {
         try app.updatePlants();
-        std.Thread.sleep(std.time.ns_per_s / 2.0);
+        std.Thread.sleep(std.time.ns_per_s);
     }
 }
 
@@ -117,7 +117,7 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     const id_param = req.param("plantid").?;
     const id = try std.fmt.parseInt(usize, id_param, 10);
 
-    if (id < 0 or id >= app.plants.items.len) {
+    if (id < 0 or id >= 4) {
         return error.InvalidID;
     }
 
@@ -127,15 +127,34 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     const signals = try datastar.readSignals(Hand, req);
     std.debug.print("Item {s}\n", .{signals.hand});
     if (std.mem.eql(u8, signals.hand, "watering")) {
-        app.plants.items[id].stats.water += 0.1;
+        if (app.plants[id]) |*p| {
+            p.stats.water += 0.1;
+        }
     } else if (std.mem.eql(u8, signals.hand, "fertilizing")) {
-        app.plants.items[id].stats.ph += 0.1;
+        if (app.plants[id]) |*p| {
+            p.stats.ph += 0.1;
+        }
     } else if (std.mem.eql(u8, signals.hand, "sunning")) {
-        app.plants.items[id].stats.sun += 0.1;
+        if (app.plants[id]) |*p| {
+            p.stats.sun += 0.1;
+        }
+    } else if (std.mem.eql(u8, signals.hand, "shovel")) {
+        // Remove plant at index
+        std.debug.print("Found shovel: {s}", .{signals.hand});
+    } else if (std.mem.eql(u8, signals.hand, "carrot")) {
+        // Remove plant at index
+        std.debug.print("Found other hand item: {s}", .{signals.hand});
+    } else if (std.mem.eql(u8, signals.hand, "onion")) {
+        // Remove plant at index
+        std.debug.print("Found other hand item: {s}", .{signals.hand});
+    } else if (std.mem.eql(u8, signals.hand, "onion")) {
+        // Remove plant at index
+        std.debug.print("Found other hand item: {s}", .{signals.hand});
+    } else if (std.mem.eql(u8, signals.hand, "onion")) {
+        // Remove plant at index
     } else {
         std.debug.print("Found other hand item: {s}", .{signals.hand});
     }
-
     // update any screens subscribed to "plants"
     try app.publish("plants");
 }
