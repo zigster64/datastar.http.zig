@@ -3,7 +3,8 @@ const httpz = @import("httpz");
 const logz = @import("logz");
 const zts = @import("zts");
 const datastar = @import("datastar");
-const App = @import("05_plants.zig").App;
+const plants = @import("05_plants.zig");
+const App = plants.App;
 const homepage = @embedFile("05_index.html");
 
 const Allocator = std.mem.Allocator;
@@ -140,18 +141,24 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         }
     } else if (std.mem.eql(u8, signals.hand, "shovel")) {
         // Remove plant at index
-        std.debug.print("Found shovel: {s}", .{signals.hand});
+        app.plants[id] = null;
     } else if (std.mem.eql(u8, signals.hand, "carrot")) {
-        // Remove plant at index
+        if (app.plants[id] == null) {
+            app.plants[id] = plants.CarrotConfig;
+        }
+    } else if (std.mem.eql(u8, signals.hand, "gourd")) {
+        if (app.plants[id] == null) {
+            app.plants[id] = plants.GourdConfig;
+        }
+    } else if (std.mem.eql(u8, signals.hand, "radish")) {
+        if (app.plants[id] == null) {
+            app.plants[id] = plants.RadishConfig;
+        }
         std.debug.print("Found other hand item: {s}", .{signals.hand});
     } else if (std.mem.eql(u8, signals.hand, "onion")) {
-        // Remove plant at index
-        std.debug.print("Found other hand item: {s}", .{signals.hand});
-    } else if (std.mem.eql(u8, signals.hand, "onion")) {
-        // Remove plant at index
-        std.debug.print("Found other hand item: {s}", .{signals.hand});
-    } else if (std.mem.eql(u8, signals.hand, "onion")) {
-        // Remove plant at index
+        if (app.plants[id] == null) {
+            app.plants[id] = plants.OnionConfig;
+        }
     } else {
         std.debug.print("Found other hand item: {s}", .{signals.hand});
     }

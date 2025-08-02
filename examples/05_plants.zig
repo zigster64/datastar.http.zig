@@ -149,7 +149,7 @@ const Plant = struct {
     }
 };
 
-const CarrotConfig = Plant{
+pub const CarrotConfig = Plant{
     .name = "Carrot",
     .image_base_index = 0,
     .desired_stats = .{
@@ -164,7 +164,7 @@ const CarrotConfig = Plant{
     },
 };
 
-const RadishConfig = Plant{
+pub const RadishConfig = Plant{
     .name = "Radish",
     .image_base_index = 0,
     .desired_stats = .{
@@ -179,7 +179,7 @@ const RadishConfig = Plant{
     },
 };
 
-const GourdConfig = Plant{
+pub const GourdConfig = Plant{
     .name = "Gourd",
     .image_base_index = 0,
     .desired_stats = .{
@@ -194,8 +194,8 @@ const GourdConfig = Plant{
     },
 };
 
-const TomatoConfig = Plant{
-    .name = "Tomato",
+pub const OnionConfig = Plant{
+    .name = "Onion",
     .image_base_index = 0,
     .desired_stats = .{
         .water = 0.8,
@@ -223,7 +223,7 @@ pub const App = struct {
             .plants = .{
                 RadishConfig,
                 CarrotConfig,
-                TomatoConfig,
+                OnionConfig,
                 GourdConfig,
             },
             .subscribers = try datastar.Subscribers(*App).init(gpa, app),
@@ -271,8 +271,13 @@ pub const App = struct {
                 try p.render(i, w, app.gpa);
             } else {
                 try w.print(
-                    \\<div class="card w-6/12 h-11/12 bg-yellow-800 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
+                    \\<div class="card w-6/12 h-11/12 bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
                     \\  <div class="card-body" id="plant-{[id]}">
+                    \\    <h2 class="card-title"></h2>
+                    \\    <div class="avatar">
+                    \\      <div class="m-auto w-64 h-64 rounded-md" data-on-click="@post('/planteffect/{[id]}')">
+                    \\      </div>
+                    \\    </div>
                     \\  </div>
                     \\</div>
                 , .{ .id = i });
