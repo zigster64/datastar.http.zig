@@ -8,12 +8,10 @@ const datastar = @import("datastar");
 const Allocator = std.mem.Allocator;
 const PORT = 8085;
 
-fn index(_: *httpz.Request, res: *httpz.Response) !void {
-    res.body = @embedFile("05_index.html");
-}
+const GOD_MODE = true;
 
 const Plant = struct {
-    name: []const u8,
+    crop_type: CropType,
     image_base_index: u32 = 0,
 
     state: PlantState = .Alive,
@@ -22,6 +20,12 @@ const Plant = struct {
     stats: PlantStats = .{}, // Current Stats of plant, dynamic
     desired_stats: PlantStats = .{}, // Desired status of plant, static
 
+    const CropType = enum {
+        Carrot,
+        Radish,
+        Gourd,
+        Onion,
+    };
     // Balance stats that prefer to be around 0.5 and dislike being around 0 or 1
     const PlantStats = struct {
         water: f32 = 0.5, // Water saturation, depletes over time based on sun exposure, increased by bucket
@@ -79,6 +83,9 @@ const Plant = struct {
             },
             .Thriving => {
                 p.growth_steps += 2;
+                if (GOD_MODE) {
+                    p.growth_steps += 10;
+                }
 
                 const water_diff = @abs(p.desired_stats.water - p.stats.water);
                 const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
@@ -92,13 +99,19 @@ const Plant = struct {
 
         // Update water
         std.debug.print("Updating stats...\n", .{});
-        p.stats.water -= 0.01;
 
-        // Update ph
-        if (p.stats.ph < 0.5) {
-            p.stats.ph += 0.01;
+        if (GOD_MODE) {
+            // Do not reduce stats
+            p.stats = p.desired_stats;
         } else {
-            p.stats.ph -= 0.01;
+            p.stats.water -= 0.01;
+
+            // Update ph
+            if (p.stats.ph < 0.5) {
+                p.stats.ph += 0.01;
+            } else {
+                p.stats.ph -= 0.01;
+            }
         }
 
         // Grow plant if it breaches the threshold of growth
@@ -138,7 +151,7 @@ const Plant = struct {
             \\</div>
         , .{
             .id = id,
-            .name = p.name,
+            .name = @tagName(p.crop_type),
             .img = img_name,
             .class = img_class,
             .water = p.stats.water,
@@ -150,7 +163,7 @@ const Plant = struct {
 };
 
 pub const CarrotConfig = Plant{
-    .name = "Carrot",
+    .crop_type = .Carrot,
     .image_base_index = 0,
     .desired_stats = .{
         .water = 0.4,
@@ -165,8 +178,8 @@ pub const CarrotConfig = Plant{
 };
 
 pub const RadishConfig = Plant{
-    .name = "Radish",
-    .image_base_index = 0,
+    .crop_type = .Radish,
+    .image_base_index = 49,
     .desired_stats = .{
         .water = 0.5,
         .ph = 0.8,
@@ -180,8 +193,8 @@ pub const RadishConfig = Plant{
 };
 
 pub const GourdConfig = Plant{
-    .name = "Gourd",
-    .image_base_index = 0,
+    .crop_type = .Gourd,
+    .image_base_index = 28,
     .desired_stats = .{
         .water = 0.2,
         .ph = 0.3,
@@ -195,8 +208,8 @@ pub const GourdConfig = Plant{
 };
 
 pub const OnionConfig = Plant{
-    .name = "Onion",
-    .image_base_index = 0,
+    .crop_type = .Onion,
+    .image_base_index = 70,
     .desired_stats = .{
         .water = 0.8,
         .ph = 0.3,
@@ -214,6 +227,8 @@ pub const App = struct {
     plants: [4]?Plant,
     mutex: std.Thread.Mutex,
     subscribers: ?datastar.Subscribers(*App) = null,
+    // Represented in the order of (0) Carrot (1) Radish (2) Gourd (3) Onion
+    crop_counts: [4]u32 = [_]u32{ 0, 0, 0, 0 },
 
     pub fn init(gpa: Allocator) !*App {
         const app = try gpa.create(App);
@@ -221,10 +236,10 @@ pub const App = struct {
             .gpa = gpa,
             .mutex = .{},
             .plants = .{
-                RadishConfig,
                 CarrotConfig,
-                OnionConfig,
+                RadishConfig,
                 GourdConfig,
+                OnionConfig,
             },
             .subscribers = try datastar.Subscribers(*App).init(gpa, app),
         };
@@ -265,14 +280,13 @@ pub const App = struct {
             \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 mt-32 h-8/12">
         , .{});
 
-        // std.debug.print("Plant states are :\n {}\n{}\n{}\n{}\n\n", .{ app.plants[0].?, app.plants[1].?, app.plants[2].?, app.plants[3].? });
         for (0..4) |i| {
             if (app.plants[i]) |p| {
                 try p.render(i, w, app.gpa);
             } else {
                 try w.print(
                     \\<div class="card w-6/12 h-11/12 bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
-                    \\  <div class="card-body" id="plant-{[id]}">
+                    \\  <div id="plant-{[id]}" class="card-body">
                     \\    <h2 class="card-title"></h2>
                     \\    <div class="avatar">
                     \\      <div class="m-auto w-64 h-64 rounded-md" data-on-click="@post('/planteffect/{[id]}')">
@@ -287,8 +301,24 @@ pub const App = struct {
             \\</div>
         );
     }
+    pub fn publishCropCounts(app: *App, stream: Stream, _: ?[]const u8) !void {
+        const t1 = std.time.microTimestamp();
+        defer {
+            const t2 = std.time.microTimestamp();
+            logz.info().string("event", "publishPlantList").int("elapsed (μs)", t2 - t1).log();
+        }
+        var msg = datastar.patchSignals(stream);
+        defer msg.end();
+
+        var w = msg.writer();
+        try w.print("{{ carrots: {d}, radishes: {d}, gourds: {d}, onions: {d} }}", .{
+            app.crop_counts[0],
+            app.crop_counts[1],
+            app.crop_counts[2],
+            app.crop_counts[3],
+        });
+    }
     pub fn updatePlants(app: *App) !void {
-        std.debug.print("Updated plants!\n", .{});
         for (0..4) |i| {
             if (app.plants[i]) |*p| {
                 try p.update();

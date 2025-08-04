@@ -60,8 +60,18 @@ pub fn main() !void {
 fn updateLoop(app: *App) !void {
     while (true) {
         try app.updatePlants();
-        std.Thread.sleep(std.time.ns_per_s);
+        std.Thread.sleep(std.time.ns_per_s / 2.0);
     }
+}
+
+fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "index").int("elapsed (μs)", t2 - t1).log();
+    }
+    res.content_type = .HTML;
+    res.body = homepage;
 }
 
 fn postAsset(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
@@ -81,16 +91,6 @@ fn postAsset(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = try file.readToEndAlloc(res.arena, 100000);
 }
 
-fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
-    const t1 = std.time.microTimestamp();
-    defer {
-        const t2 = std.time.microTimestamp();
-        logz.info().string("event", "index").int("elapsed (μs)", t2 - t1).log();
-    }
-    res.content_type = .HTML;
-    res.body = homepage;
-}
-
 fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     app.mutex.lock();
@@ -104,6 +104,7 @@ fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     // DO NOT close - this stream stays open forever
     // and gets subscribed to "plants" update events
     try app.subscribe("plants", stream, App.publishPlantList);
+    try app.subscribe("crops", stream, App.publishCropCounts);
 }
 
 fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
@@ -118,49 +119,56 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     const id_param = req.param("plantid").?;
     const id = try std.fmt.parseInt(usize, id_param, 10);
 
-    if (id < 0 or id >= 4) {
-        return error.InvalidID;
-    }
+    if (id < 0 or id >= 4) return error.InvalidID;
 
     const Hand = struct {
         hand: []const u8,
     };
+
     const signals = try datastar.readSignals(Hand, req);
-    std.debug.print("Item {s}\n", .{signals.hand});
-    if (std.mem.eql(u8, signals.hand, "watering")) {
-        if (app.plants[id]) |*p| {
-            p.stats.water += 0.1;
+
+    var plant_slot = app.plants[id];
+    if (plant_slot) |*plant| { // Plant exists
+        if (plant.growth_stage == .Fruiting) { //Collect crop and update crop counter
+            switch (plant.crop_type) {
+                .Carrot => {
+                    app.crop_counts[0] += 1;
+                },
+                .Radish => {
+                    app.crop_counts[1] += 1;
+                },
+                .Gourd => {
+                    app.crop_counts[2] += 1;
+                },
+                .Onion => {
+                    app.crop_counts[3] += 1;
+                },
+            }
+            app.plants[id] = null;
+            try app.publish("crops");
+            return;
         }
-    } else if (std.mem.eql(u8, signals.hand, "fertilizing")) {
-        if (app.plants[id]) |*p| {
-            p.stats.ph += 0.1;
-        }
-    } else if (std.mem.eql(u8, signals.hand, "sunning")) {
-        if (app.plants[id]) |*p| {
-            p.stats.sun += 0.1;
-        }
-    } else if (std.mem.eql(u8, signals.hand, "shovel")) {
-        // Remove plant at index
-        app.plants[id] = null;
-    } else if (std.mem.eql(u8, signals.hand, "carrot")) {
-        if (app.plants[id] == null) {
-            app.plants[id] = plants.CarrotConfig;
-        }
-    } else if (std.mem.eql(u8, signals.hand, "gourd")) {
-        if (app.plants[id] == null) {
-            app.plants[id] = plants.GourdConfig;
-        }
-    } else if (std.mem.eql(u8, signals.hand, "radish")) {
-        if (app.plants[id] == null) {
-            app.plants[id] = plants.RadishConfig;
-        }
-        std.debug.print("Found other hand item: {s}", .{signals.hand});
-    } else if (std.mem.eql(u8, signals.hand, "onion")) {
-        if (app.plants[id] == null) {
-            app.plants[id] = plants.OnionConfig;
+
+        if (std.mem.eql(u8, signals.hand, "watering")) {
+            app.plants[id].?.stats.water += 0.1;
+        } else if (std.mem.eql(u8, signals.hand, "fertilizing")) {
+            app.plants[id].?.stats.ph += 0.1;
+        } else if (std.mem.eql(u8, signals.hand, "sunning")) {
+            app.plants[id].?.stats.sun += 0.1;
+        } else if (std.mem.eql(u8, signals.hand, "shovel")) {
+            // Remove plant at index
+            app.plants[id] = null;
         }
     } else {
-        std.debug.print("Found other hand item: {s}", .{signals.hand});
+        if (std.mem.eql(u8, signals.hand, "carrot")) {
+            app.plants[id] = plants.CarrotConfig;
+        } else if (std.mem.eql(u8, signals.hand, "gourd")) {
+            app.plants[id] = plants.GourdConfig;
+        } else if (std.mem.eql(u8, signals.hand, "radish")) {
+            app.plants[id] = plants.RadishConfig;
+        } else if (std.mem.eql(u8, signals.hand, "onion")) {
+            app.plants[id] = plants.OnionConfig;
+        }
     }
     // update any screens subscribed to "plants"
     try app.publish("plants");
