@@ -271,7 +271,7 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishPlantList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishPlantList").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
         // Update the HTML in the correct order
@@ -308,7 +308,7 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishCropCounts").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCropCounts").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
         var msg = datastar.patchSignals(stream);

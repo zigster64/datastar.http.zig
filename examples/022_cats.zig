@@ -160,10 +160,8 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishCatList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session.?).int("elapsed (μs)", t2 - t1).log();
         }
-
-        std.debug.print("publishCatList with session {?s}\n", .{session});
 
         // Update the HTML in the correct order
         var msg = datastar.patchElementsOpt(stream, .{ .view_transition = true });

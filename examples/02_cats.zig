@@ -74,7 +74,7 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishCatList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCatList").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
         // Update the HTML in the correct order

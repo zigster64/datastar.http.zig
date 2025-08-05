@@ -320,7 +320,7 @@ pub fn Subscribers(comptime T: type) type {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            std.debug.print("publish on topic {s} for session {?s}\n", .{ topic, session });
+            // std.debug.print("publish on topic {s} for session {?s}\n", .{ topic, session });
             if (self.subs.getPtr(topic)) |subs| {
                 // traverse the list backwards, so its safe to drop elements during the traversal
                 var i: usize = subs.items.len;
@@ -329,7 +329,7 @@ pub fn Subscribers(comptime T: type) type {
                     var sub = subs.items[i];
                     if (sub.session == null) {
                         // we publish everything, without passing a session value
-                        std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
+                        // std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
                         @call(.auto, sub.action, .{ self.app, sub.stream, null }) catch |err| {
                             sub.stream.close();
                             _ = subs.swapRemove(i);
@@ -340,7 +340,7 @@ pub fn Subscribers(comptime T: type) type {
                             // only publish subs where the session value matches what we ask for
                             if (sub.session) |ss| {
                                 if (std.mem.eql(u8, sv, ss)) {
-                                    std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
+                                    // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
                                     @call(.auto, sub.action, .{ self.app, sub.stream, ss }) catch |err| {
                                         sub.stream.close();
                                         if (sub.session) |subsession| self.gpa.free(subsession);
@@ -351,7 +351,7 @@ pub fn Subscribers(comptime T: type) type {
                             }
                         } else {
                             // publish all
-                            std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
+                            // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
                             @call(.auto, sub.action, .{ self.app, sub.stream, sub.session }) catch |err| {
                                 sub.stream.close();
                                 if (sub.session) |subsession| self.gpa.free(subsession);
