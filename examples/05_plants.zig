@@ -232,7 +232,6 @@ pub const App = struct {
     subscribers: ?datastar.Subscribers(*App) = null,
     // Represented in the order of (0) Carrot (1) Radish (2) Gourd (3) Onion
     crop_counts: [4]u32 = [_]u32{ 0, 0, 0, 0 },
-    last_crop_counts: [4]u32 = [_]u32{ 0, 0, 0, 0 },
 
     pub fn init(gpa: Allocator) !*App {
         const app = try gpa.create(App);
@@ -306,10 +305,6 @@ pub const App = struct {
         );
     }
     pub fn publishCropCounts(app: *App, stream: Stream, _: ?[]const u8) !void {
-        // if the crop counts havent changed then skip the update
-        if (std.mem.eql(u32, &app.crop_counts, &app.last_crop_counts)) {
-            return;
-        }
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
