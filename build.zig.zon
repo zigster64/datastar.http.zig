@@ -6,6 +6,8 @@
     .dependencies = .{
         .httpz = .{
             // using the dev branch so we are on zig 0.15.dev
+            // Im still using version 855, later versions of zig dev (and http.zig dev) are so out of whack
+            // due to writergate and other stdlib changes, that Im pinning things to this stable commit here :)
             .url = "git+https://github.com/karlseguin/http.zig?ref=dev#aa65ee07b8ea47b7e3d6105c3135630d372d0fea",
             .hash = "httpz-0.0.0-PNVzrAvDBgCyEuvLZqN-dPEudxSOs0mqYg3hP7TGa3Cx",
         },
