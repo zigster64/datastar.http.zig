@@ -312,7 +312,7 @@ pub fn Subscribers(comptime T: type) type {
             }
         }
 
-        fn purge(self: *Self, stream: std.net.Stream) void {
+        fn purge(self: *Self, stream: std.net.Stream, err: anyerror) void {
             // for each topic - go through all subscriptions and remove the matching stream
             var iterator = self.subs.iterator();
             while (iterator.next()) |*entry| {
@@ -326,7 +326,7 @@ pub fn Subscribers(comptime T: type) type {
                     const sub = subs.items[i];
                     if (sub.stream.handle == stream.handle) {
                         _ = subs.swapRemove(i);
-                        std.debug.print("Closing subscriber {}:{d} on topic {s}\n", .{ i, sub.stream.handle, topic });
+                        std.debug.print("Closing subscriber {}:{d} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
                     }
                 }
             }
@@ -351,15 +351,13 @@ pub fn Subscribers(comptime T: type) type {
                         // we publish everything, without passing a session value
                         // std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
                         @call(.auto, sub.action, .{ self.app, sub.stream, null }) catch |err| {
-                            std.debug.print("Error {} writing to stream {d} with topic {s}\n", .{ err, sub.stream.handle, topic });
                             switch (err) {
                                 error.NotOpenForWriting => {},
                                 else => {
                                     sub.stream.close();
                                 },
                             }
-                            self.purge(sub.stream);
-                            std.debug.print("Closing subscriber {}:{any} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
+                            self.purge(sub.stream, err);
                         };
                     } else {
                         if (session) |sv| {
@@ -375,8 +373,7 @@ pub fn Subscribers(comptime T: type) type {
                                             },
                                         }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
-                                        self.purge(sub.stream);
-                                        std.debug.print("Closing subscriber {}:{any} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
+                                        self.purge(sub.stream, err);
                                     };
                                 }
                             }
@@ -391,8 +388,7 @@ pub fn Subscribers(comptime T: type) type {
                                     },
                                 }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
-                                self.purge(sub.stream);
-                                std.debug.print("Closing subscriber {}:{any} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
+                                self.purge(sub.stream, err);
                             };
                         }
                     }
