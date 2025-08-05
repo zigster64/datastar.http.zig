@@ -1,7 +1,6 @@
 const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
-const zts = @import("zts");
 const datastar = @import("datastar");
 const App = @import("022_cats.zig").App;
 const SortType = @import("022_cats.zig").SortType;
