@@ -331,7 +331,13 @@ pub fn Subscribers(comptime T: type) type {
                         // we publish everything, without passing a session value
                         // std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
                         @call(.auto, sub.action, .{ self.app, sub.stream, null }) catch |err| {
-                            sub.stream.close();
+                            std.debug.print("Error {} writing to stream {d} with topic {s}\n", .{ err, sub.stream.handle, topic });
+                            switch (err) {
+                                error.NotOpenForWriting => {},
+                                else => {
+                                    sub.stream.close();
+                                },
+                            }
                             _ = subs.swapRemove(i);
                             std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
                         };
@@ -342,7 +348,12 @@ pub fn Subscribers(comptime T: type) type {
                                 if (std.mem.eql(u8, sv, ss)) {
                                     // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
                                     @call(.auto, sub.action, .{ self.app, sub.stream, ss }) catch |err| {
-                                        sub.stream.close();
+                                        switch (err) {
+                                            error.NotOpenForWriting => {},
+                                            else => {
+                                                sub.stream.close();
+                                            },
+                                        }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
                                         _ = subs.swapRemove(i);
                                         std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
@@ -353,7 +364,12 @@ pub fn Subscribers(comptime T: type) type {
                             // publish all
                             // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
                             @call(.auto, sub.action, .{ self.app, sub.stream, sub.session }) catch |err| {
-                                sub.stream.close();
+                                switch (err) {
+                                    error.NotOpenForWriting => {},
+                                    else => {
+                                        sub.stream.close();
+                                    },
+                                }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
                                 _ = subs.swapRemove(i);
                                 std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
