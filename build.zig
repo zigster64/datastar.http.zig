@@ -59,9 +59,6 @@ pub fn build(b: *std.Build) void {
             const logz_module = b.dependency("logz", dep_opts);
             exe.root_module.addImport("logz", logz_module.module("logz"));
 
-            const zts_module = b.dependency("zts", dep_opts);
-            exe.root_module.addImport("zts", zts_module.module("zts"));
-
             b.installArtifact(exe);
 
             const run_cmd = b.addRunArtifact(exe);
