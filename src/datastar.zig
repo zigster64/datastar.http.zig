@@ -324,7 +324,6 @@ pub fn Subscribers(comptime T: type) type {
                 while (i > 0) {
                     i -= 1;
                     const sub = subs.items[i];
-                    std.debug.print("purge compare {d} to {d}\n", .{ sub.stream.handle, stream.handle });
                     if (sub.stream.handle == stream.handle) {
                         _ = subs.swapRemove(i);
                         std.debug.print("Closing subscriber {}:{d} on topic {s}\n", .{ i, sub.stream.handle, topic });
@@ -360,7 +359,7 @@ pub fn Subscribers(comptime T: type) type {
                                 },
                             }
                             self.purge(sub.stream);
-                            std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                            std.debug.print("Closing subscriber {}:{any} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
                         };
                     } else {
                         if (session) |sv| {
@@ -377,7 +376,7 @@ pub fn Subscribers(comptime T: type) type {
                                         }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
                                         self.purge(sub.stream);
-                                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                                        std.debug.print("Closing subscriber {}:{any} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
                                     };
                                 }
                             }
@@ -393,7 +392,7 @@ pub fn Subscribers(comptime T: type) type {
                                 }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
                                 self.purge(sub.stream);
-                                std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                                std.debug.print("Closing subscriber {}:{any} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
                             };
                         }
                     }
