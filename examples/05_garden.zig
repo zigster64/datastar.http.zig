@@ -145,6 +145,7 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
                 },
             }
             app.plants[id] = null;
+            try app.publish("plants");
             try app.publish("crops");
             return;
         }

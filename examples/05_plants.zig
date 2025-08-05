@@ -20,6 +20,8 @@ const Plant = struct {
     stats: PlantStats = .{}, // Current Stats of plant, dynamic
     desired_stats: PlantStats = .{}, // Desired status of plant, static
 
+    changed: bool = true,
+
     const CropType = enum {
         Carrot,
         Radish,
@@ -50,9 +52,11 @@ const Plant = struct {
         Fruiting,
     };
     pub fn update(p: *Plant) !void {
+        p.changed = false;
         if (p.state == .Dead or p.growth_stage == .Fruiting) {
             return;
         }
+        p.changed = true;
         // Update state based on stats and desired stats
         switch (p.state) {
             .Dead => {},
@@ -229,6 +233,7 @@ pub const App = struct {
     subscribers: ?datastar.Subscribers(*App) = null,
     // Represented in the order of (0) Carrot (1) Radish (2) Gourd (3) Onion
     crop_counts: [4]u32 = [_]u32{ 0, 0, 0, 0 },
+    last_crop_counts: [4]u32 = [_]u32{ 0, 0, 0, 0 },
 
     pub fn init(gpa: Allocator) !*App {
         const app = try gpa.create(App);
@@ -277,7 +282,7 @@ pub const App = struct {
 
         var w = msg.writer();
         try w.print(
-            \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 mt-32 h-8/12">
+            \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 mt-32 h-11/12">
         , .{});
 
         for (0..4) |i| {
@@ -302,11 +307,16 @@ pub const App = struct {
         );
     }
     pub fn publishCropCounts(app: *App, stream: Stream, _: ?[]const u8) !void {
+        // if the crop counts havent changed then skip the update
+        if (std.mem.eql(u32, &app.crop_counts, &app.last_crop_counts)) {
+            return;
+        }
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishPlantList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCropCounts").int("elapsed (μs)", t2 - t1).log();
         }
+
         var msg = datastar.patchSignals(stream);
         defer msg.end();
 
@@ -319,11 +329,17 @@ pub const App = struct {
         });
     }
     pub fn updatePlants(app: *App) !void {
+        var has_changes: bool = false;
         for (0..4) |i| {
             if (app.plants[i]) |*p| {
                 try p.update();
+                if (p.changed) {
+                    has_changes = true;
+                }
             }
         }
-        try app.publish("plants");
+        if (has_changes) {
+            try app.publish("plants");
+        }
     }
 };
