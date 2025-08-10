@@ -281,6 +281,20 @@ pub fn Subscribers(comptime T: type) type {
             self.mutex.lock();
             defer self.mutex.unlock();
 
+            // check first that the given stream isnt already subscribed to this topic !!
+            // if it is, then quit now, because they already have the most recent patch update
+            // and we DONT want to get into a state where we close a socket then attempt to
+            // write to it again in the same publish loop
+            {
+                if (self.subs.getPtr(topic)) |subs| {
+                    for (subs.items) |sub| {
+                        if (sub.stream.handle == stream.handle) {
+                            std.debug.print("Stream {d} is already subscribed to topic {s} ... ignoring. Fix Your Code !\n", .{ stream.handle, topic });
+                            return;
+                        }
+                    }
+                }
+            }
             // on first subscription, try to write the output first
             // if it works, then we add them to the subscriber list
             std.debug.print("calling the initial subscribe callback function for topic {s} on stream {d}\n", .{ topic, stream.handle });
@@ -288,18 +302,6 @@ pub fn Subscribers(comptime T: type) type {
                 stream.close();
                 return err;
             };
-
-            // check now that the given stream isnt already subscribed to this topic !!
-            {
-                if (self.subs.getPtr(topic)) |subs| {
-                    for (subs.items) |sub| {
-                        if (sub.stream.handle == stream.handle) {
-                            std.debug.print("Stream {d} is already subscribed to topic {s}\n", .{ stream.handle, topic });
-                            return;
-                        }
-                    }
-                }
-            }
 
             var new_sub = Subscription{
                 .stream = stream,
