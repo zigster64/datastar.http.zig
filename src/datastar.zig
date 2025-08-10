@@ -235,6 +235,7 @@ pub fn readSignals(comptime T: type, req: anytype) !T {
 }
 
 const SessionType = ?[]const u8;
+const StreamList = std.ArrayList(std.net.Stream);
 
 pub fn Subscribers(comptime T: type) type {
     return struct {
@@ -288,6 +289,18 @@ pub fn Subscribers(comptime T: type) type {
                 return err;
             };
 
+            // check now that the given stream isnt already subscribed to this topic !!
+            {
+                if (self.subs.getPtr(topic)) |subs| {
+                    for (subs.items) |sub| {
+                        if (sub.stream.handle == stream.handle) {
+                            std.debug.print("Stream {d} is already subscribed to topic {s}\n", .{ stream.handle, topic });
+                            return;
+                        }
+                    }
+                }
+            }
+
             var new_sub = Subscription{
                 .stream = stream,
                 .action = func,
@@ -312,7 +325,9 @@ pub fn Subscribers(comptime T: type) type {
             }
         }
 
-        fn purge(self: *Self, stream: std.net.Stream, err: anyerror) void {
+        fn purge(self: *Self, streams: StreamList) void {
+            if (streams.items.len == 0) return;
+
             // for each topic - go through all subscriptions and remove the matching stream
             var iterator = self.subs.iterator();
             while (iterator.next()) |*entry| {
@@ -324,9 +339,11 @@ pub fn Subscribers(comptime T: type) type {
                 while (i > 0) {
                     i -= 1;
                     const sub = subs.items[i];
-                    if (sub.stream.handle == stream.handle) {
-                        _ = subs.swapRemove(i);
-                        std.debug.print("Closing subscriber {}:{d} on topic {s} - {}\n", .{ i, sub.stream.handle, topic, err });
+                    for (streams.items) |stream| {
+                        if (sub.stream.handle == stream.handle) {
+                            _ = subs.swapRemove(i);
+                            std.debug.print("Closing subscriber {}:{d} on topic {s}\n", .{ i, sub.stream.handle, topic });
+                        }
                     }
                 }
             }
@@ -338,7 +355,14 @@ pub fn Subscribers(comptime T: type) type {
 
         pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void {
             self.mutex.lock();
-            defer self.mutex.unlock();
+            var dead_streams = StreamList.init(self.gpa);
+            defer {
+                if (dead_streams.items.len > 0) {
+                    self.purge(dead_streams);
+                }
+                dead_streams.deinit();
+                self.mutex.unlock();
+            }
 
             // std.debug.print("publish on topic {s} for session {?s}\n", .{ topic, session });
             if (self.subs.getPtr(topic)) |subs| {
@@ -357,7 +381,7 @@ pub fn Subscribers(comptime T: type) type {
                                     sub.stream.close();
                                 },
                             }
-                            self.purge(sub.stream, err);
+                            try dead_streams.append(sub.stream);
                         };
                     } else {
                         if (session) |sv| {
@@ -373,7 +397,7 @@ pub fn Subscribers(comptime T: type) type {
                                             },
                                         }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
-                                        self.purge(sub.stream, err);
+                                        try dead_streams.append(sub.stream);
                                     };
                                 }
                             }
@@ -388,7 +412,7 @@ pub fn Subscribers(comptime T: type) type {
                                     },
                                 }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
-                                self.purge(sub.stream, err);
+                                try dead_streams.append(sub.stream);
                             };
                         }
                     }
