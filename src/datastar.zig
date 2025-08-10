@@ -330,6 +330,11 @@ pub fn Subscribers(comptime T: type) type {
         fn purge(self: *Self, streams: StreamList) void {
             if (streams.items.len == 0) return;
 
+            const t1 = std.time.microTimestamp();
+            defer {
+                std.debug.print("Purge took only {d}μs\n", .{std.time.microTimestamp() - t1});
+            }
+
             // for each topic - go through all subscriptions and remove the matching stream
             var iterator = self.subs.iterator();
             while (iterator.next()) |*entry| {
