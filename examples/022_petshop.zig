@@ -15,8 +15,7 @@ pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
 
-    var app = try App.init(allocator);
-    try app.enableSubscriptions();
+    const app = try App.init(allocator);
 
     var server = try httpz.Server(*App).init(allocator, .{
         .port = PORT,

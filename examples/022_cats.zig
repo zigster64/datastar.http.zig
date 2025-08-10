@@ -96,10 +96,6 @@ pub const App = struct {
         return s;
     }
 
-    pub fn enableSubscriptions(app: *App) !void {
-        app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
-    }
-
     pub fn deinit(app: *App) void {
         app.streams.deinit();
         app.cats.deinit();

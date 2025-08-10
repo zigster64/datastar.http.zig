@@ -104,6 +104,12 @@ fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
     // and gets subscribed to "plants" update events
     try app.subscribe("plants", stream, App.publishPlantList);
     try app.subscribe("crops", stream, App.publishCropCounts);
+
+    // just to be silly - try to multi subscribe, and observe that it detects that its already subbed
+    try app.subscribe("plants", stream, App.publishPlantList);
+    try app.subscribe("crops", stream, App.publishCropCounts);
+    try app.subscribe("plants", stream, App.publishPlantList);
+    try app.subscribe("crops", stream, App.publishCropCounts);
 }
 
 fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
