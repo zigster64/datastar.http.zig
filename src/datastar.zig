@@ -58,6 +58,7 @@ pub const Message = struct {
     only_if_missing: bool = false,
     line_in_progress: bool = false,
     keep_script: bool = false,
+    protocol: Command = .patchElements,
 
     const Writer = std.io.Writer(
         *Message,
