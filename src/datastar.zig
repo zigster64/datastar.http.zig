@@ -88,7 +88,6 @@ pub const Message = struct {
         // swap to new command
         self.end();
         self.command = command;
-        std.debug.print("swapped to command {}\n", .{self.command});
     }
 
     pub fn end(self: *Message) void {
@@ -99,7 +98,6 @@ pub const Message = struct {
     }
 
     pub fn header(self: *Message) !void {
-        std.debug.print("D* header with command protocol {}\n", .{self.command});
         var w = self.stream.writer();
         switch (self.command) {
             .patchElements => {
@@ -133,7 +131,6 @@ pub const Message = struct {
 
     pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {
-            std.debug.print("write and not started - header {}\n", .{self.command});
             try self.header();
         }
 
