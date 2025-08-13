@@ -2,13 +2,12 @@ const std = @import("std");
 const Stream = std.net.Stream;
 const httpz = @import("httpz");
 const logz = @import("logz");
-const zts = @import("zts");
 const datastar = @import("datastar");
 
 const Allocator = std.mem.Allocator;
 const PORT = 8085;
 
-const GOD_MODE = true;
+const GM = false;
 
 const Plant = struct {
     crop_type: CropType,
@@ -19,6 +18,8 @@ const Plant = struct {
     growth_steps: u32 = 0,
     stats: PlantStats = .{}, // Current Stats of plant, dynamic
     desired_stats: PlantStats = .{}, // Desired status of plant, static
+
+    changed: bool = true,
 
     const CropType = enum {
         Carrot,
@@ -50,9 +51,11 @@ const Plant = struct {
         Fruiting,
     };
     pub fn update(p: *Plant) !void {
+        p.changed = false;
         if (p.state == .Dead or p.growth_stage == .Fruiting) {
             return;
         }
+        p.changed = true;
         // Update state based on stats and desired stats
         switch (p.state) {
             .Dead => {},
@@ -62,28 +65,28 @@ const Plant = struct {
                 const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
                 const sun_diff = @abs(p.desired_stats.sun - p.stats.sun);
 
-                if (water_diff < 0.3 and ph_diff < 0.3 and sun_diff < 0.3) {
+                if (water_diff <= 0.3 and ph_diff <= 0.3 and sun_diff <= 0.3) {
                     p.state = .Alive;
                 } else if (water_diff > 0.5 or ph_diff > 0.5 or sun_diff > 0.5) {
                     p.state = .Dead;
                 }
             },
             .Alive => {
-                p.growth_steps += 1;
+                p.growth_steps += 2;
 
                 const water_diff = @abs(p.desired_stats.water - p.stats.water);
                 const ph_diff = @abs(p.desired_stats.ph - p.stats.ph);
                 const sun_diff = @abs(p.desired_stats.sun - p.stats.sun);
 
-                if (water_diff < 0.1 and ph_diff < 0.1 and sun_diff < 0.1) {
+                if (water_diff <= 0.1 and ph_diff <= 0.1 and sun_diff <= 0.1) {
                     p.state = .Thriving;
                 } else if (water_diff > 0.3 or ph_diff > 0.3 or sun_diff > 0.3) {
                     p.state = .Dying;
                 }
             },
             .Thriving => {
-                p.growth_steps += 2;
-                if (GOD_MODE) {
+                p.growth_steps += 4;
+                if (GM) {
                     p.growth_steps += 10;
                 }
 
@@ -100,7 +103,7 @@ const Plant = struct {
         // Update water
         std.debug.print("Updating stats...\n", .{});
 
-        if (GOD_MODE) {
+        if (GM) {
             // Do not reduce stats
             p.stats = p.desired_stats;
         } else {
@@ -134,32 +137,62 @@ const Plant = struct {
             .Alive => "alive",
             .Thriving => "thriving",
         };
+
+        const water_diff = p.stats.water - p.desired_stats.water;
+        const ph_diff = p.stats.ph - p.desired_stats.ph;
+        const sun_diff = p.stats.sun - p.desired_stats.sun;
         try w.print(
-            \\<div class="card w-6/12 h-11/12 bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
+            \\<div class="card-md px-16 w-fit h-fit bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
             \\  <div class="card-body" id="plant-{[id]}">
-            \\    <h2 class="card-title">#{[id]} {[name]s}</h2>
-            \\    <div class="avatar">
-            \\      <div class="m-auto w-32 h-32 rounded-md">
-            \\        <img class="{[class]s}" data-on-click="@post('/planteffect/{[id]}')" src="{[img]s}">
+            \\    <div class="w-full h-full flex flex-col justify-center items-center">
+            \\      <div class="avatar w-32 h-32 rounded-md pb-4">
+            \\        <img class="{[class]s} rounded-md"
+            \\          data-on-click="@post('/planteffect/inc/{[id]}')"
+            \\          data-on-contextmenu="evt.preventDefault();@post('/planteffect/dec/{[id]}')"
+            \\          src="{[img]s}"
+            \\        >
+            \\      </div>
+            \\      <div id="notifications-bar" class="flex items-center w-10/12 h-4/12 border-4 border-solid border-gray-800 bg-gray-600 rounded-md">
+            \\        {[water_n]s}
+            \\        {[ph_n]s}
+            \\        {[sun_n]s}
             \\      </div>
             \\    </div>
-            \\    <pre>
-            \\      <div> water: {[water]}, ph: {[ph]}, sun: {[sun]}
-            \\      <div> growth: {[steps]} / 25 </pre>
-            \\    </pre>
             \\  </div>
             \\</div>
         , .{
             .id = id,
-            .name = @tagName(p.crop_type),
             .img = img_name,
             .class = img_class,
-            .water = p.stats.water,
-            .ph = p.stats.ph,
-            .sun = p.stats.sun,
-            .steps = p.growth_steps,
+            .water_n = if (water_diff < -0.1)
+                \\<div id="water-notif" class="w-10 h-10 bg-blue-500 text-center text-sm overflow-hidden"><img class="m-auto w-6 h-6" src="assets/water.png"> Low </div>
+            else if (water_diff > 0.1)
+                \\<div id="water-notif" class="w-10 h-10 bg-blue-500 text-center text-sm overflow-hidden"><img class="m-auto w-6 h-6" src="assets/water.png"> High </div>
+            else
+                \\<div id="water-notif" class="w-10 h-10"></div>
+            ,
+            .ph_n = if (ph_diff < -0.1)
+                \\<div id="ph-notif" class="w-10 h-10 bg-green-500"><img class="m-auto w-6 h-6" src="assets/ph.png"> Low </div>
+            else if (ph_diff > 0.1)
+                \\<div id="ph-notif" class="w-10 h-10 bg-green-500"><img class="m-auto w-6 h-6" src="assets/ph.png"> High </div>
+            else
+                \\<div id="ph-notif" class="w-10 h-10"></div>
+            ,
+            .sun_n = if (sun_diff < -0.1)
+                \\<div id="sun-notif" class="w-10 h-10 bg-red-500"><img class="m-auto w-6 h-6" src="assets/sun.png"> Low </div>
+            else if (sun_diff > 0.1)
+                \\<div id="sun-notif" class="w-10 h-10 bg-red-500"><img class="m-auto w-6 h-6" src="assets/sun.png"> High </div>
+            else
+                \\<div id="sun-notif" class="w-10 h-10"></div>
+            ,
         });
     }
+};
+
+const StartingStats: Plant.PlantStats = .{
+    .water = 0.5,
+    .ph = 0.5,
+    .sun = 0.5,
 };
 
 pub const CarrotConfig = Plant{
@@ -170,11 +203,7 @@ pub const CarrotConfig = Plant{
         .ph = 0.4,
         .sun = 0.4,
     },
-    .stats = .{
-        .water = 0.4,
-        .ph = 0.4,
-        .sun = 0.4,
-    },
+    .stats = StartingStats,
 };
 
 pub const RadishConfig = Plant{
@@ -185,11 +214,7 @@ pub const RadishConfig = Plant{
         .ph = 0.8,
         .sun = 0.2,
     },
-    .stats = .{
-        .water = 0.5,
-        .ph = 0.8,
-        .sun = 0.2,
-    },
+    .stats = StartingStats,
 };
 
 pub const GourdConfig = Plant{
@@ -200,11 +225,7 @@ pub const GourdConfig = Plant{
         .ph = 0.3,
         .sun = 0.6,
     },
-    .stats = .{
-        .water = 0.2,
-        .ph = 0.3,
-        .sun = 0.6,
-    },
+    .stats = StartingStats,
 };
 
 pub const OnionConfig = Plant{
@@ -215,11 +236,7 @@ pub const OnionConfig = Plant{
         .ph = 0.3,
         .sun = 0.6,
     },
-    .stats = .{
-        .water = 0.8,
-        .ph = 0.3,
-        .sun = 0.6,
-    },
+    .stats = StartingStats,
 };
 
 pub const App = struct {
@@ -268,7 +285,7 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishPlantList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishPlantList").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
         // Update the HTML in the correct order
@@ -277,7 +294,7 @@ pub const App = struct {
 
         var w = msg.writer();
         try w.print(
-            \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 mt-32 h-8/12">
+            \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 h-fit">
         , .{});
 
         for (0..4) |i| {
@@ -285,13 +302,9 @@ pub const App = struct {
                 try p.render(i, w, app.gpa);
             } else {
                 try w.print(
-                    \\<div class="card w-6/12 h-11/12 bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
-                    \\  <div id="plant-{[id]}" class="card-body">
-                    \\    <h2 class="card-title"></h2>
-                    \\    <div class="avatar">
-                    \\      <div class="m-auto w-64 h-64 rounded-md" data-on-click="@post('/planteffect/{[id]}')">
-                    \\      </div>
-                    \\    </div>
+                    \\<div class="card px-16 py-6 w-fit h-fit bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
+                    \\  <div class="avatar">
+                    \\      <div class="m-auto w-48 h-48 rounded-md" data-on-click="@post('/planteffect/inc/{[id]}')"> </div>
                     \\  </div>
                     \\</div>
                 , .{ .id = i });
@@ -305,8 +318,9 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishPlantList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCropCounts").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
+
         var msg = datastar.patchSignals(stream);
         defer msg.end();
 
@@ -319,11 +333,17 @@ pub const App = struct {
         });
     }
     pub fn updatePlants(app: *App) !void {
+        var has_changes: bool = false;
         for (0..4) |i| {
             if (app.plants[i]) |*p| {
                 try p.update();
+                if (p.changed) {
+                    has_changes = true;
+                }
             }
         }
-        try app.publish("plants");
+        if (has_changes) {
+            try app.publish("plants");
+        }
     }
 };

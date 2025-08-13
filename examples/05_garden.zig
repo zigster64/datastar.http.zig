@@ -1,17 +1,15 @@
 const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
-const zts = @import("zts");
 const datastar = @import("datastar");
 const plants = @import("05_plants.zig");
-const App = plants.App;
 const homepage = @embedFile("05_index.html");
 
+const App = plants.App;
 const Allocator = std.mem.Allocator;
 
 const PORT = 8085;
 
-// This example demonstrates a realtime pub/sub game that multople clients can join
 // SSE and pub/sub to have realtime updates of updates to the garden
 pub fn main() !void {
     var gpa: std.heap.DebugAllocator(.{}) = .init;
@@ -49,7 +47,7 @@ pub fn main() !void {
 
     router.get("/", index, .{});
     router.get("/plants", plantList, .{});
-    router.post("/planteffect/:plantid", postPlantEffect, .{});
+    router.post("/planteffect/:side/:plantid", postPlantEffect, .{});
     router.get("/assets/:assetname", postAsset, .{});
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
@@ -60,7 +58,7 @@ pub fn main() !void {
 fn updateLoop(app: *App) !void {
     while (true) {
         try app.updatePlants();
-        std.Thread.sleep(std.time.ns_per_s / 2.0);
+        std.Thread.sleep(std.time.ns_per_s);
     }
 }
 
@@ -116,6 +114,9 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         logz.info().string("event", "postPlantEffect").int("elapsed (μs)", t2 - t1).log();
     }
 
+    const side_param = req.param("side").?;
+    const left = if (std.mem.eql(u8, side_param, "inc")) true else false;
+
     const id_param = req.param("plantid").?;
     const id = try std.fmt.parseInt(usize, id_param, 10);
 
@@ -145,16 +146,17 @@ fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
                 },
             }
             app.plants[id] = null;
+            try app.publish("plants");
             try app.publish("crops");
             return;
         }
 
         if (std.mem.eql(u8, signals.hand, "watering")) {
-            app.plants[id].?.stats.water += 0.1;
+            app.plants[id].?.stats.water += if (left) 0.1 else 0;
         } else if (std.mem.eql(u8, signals.hand, "fertilizing")) {
-            app.plants[id].?.stats.ph += 0.1;
+            app.plants[id].?.stats.ph += if (left) 0.1 else -0.1;
         } else if (std.mem.eql(u8, signals.hand, "sunning")) {
-            app.plants[id].?.stats.sun += 0.1;
+            app.plants[id].?.stats.sun += if (left) 0.1 else -0.1;
         } else if (std.mem.eql(u8, signals.hand, "shovel")) {
             // Remove plant at index
             app.plants[id] = null;
