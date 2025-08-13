@@ -1,7 +1,6 @@
 const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
-const zts = @import("zts");
 const datastar = @import("datastar");
 const Allocator = std.mem.Allocator;
 
@@ -97,10 +96,6 @@ pub const App = struct {
         return s;
     }
 
-    pub fn enableSubscriptions(app: *App) !void {
-        app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
-    }
-
     pub fn deinit(app: *App) void {
         app.streams.deinit();
         app.cats.deinit();
@@ -161,10 +156,8 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishCatList").int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session.?).int("elapsed (μs)", t2 - t1).log();
         }
-
-        std.debug.print("publishCatList with session {?s}\n", .{session});
 
         // Update the HTML in the correct order
         var msg = datastar.patchElementsOpt(stream, .{ .view_transition = true });
