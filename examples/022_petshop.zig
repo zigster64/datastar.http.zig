@@ -1,7 +1,6 @@
 const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
-const zts = @import("zts");
 const datastar = @import("datastar");
 const App = @import("022_cats.zig").App;
 const SortType = @import("022_cats.zig").SortType;
@@ -16,8 +15,7 @@ pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
 
-    var app = try App.init(allocator);
-    try app.enableSubscriptions();
+    const app = try App.init(allocator);
 
     var server = try httpz.Server(*App).init(allocator, .{
         .port = PORT,

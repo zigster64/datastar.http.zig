@@ -81,18 +81,17 @@ pub const Message = struct {
         return m;
     }
 
-    pub fn messageType(self: *Message, protocol: Command) void {
-        if (self.protocol == protocol) {
-            return;
-        }
-        // swap to new protocol
+    pub fn swapTo(self: *Message, command: Command, opt: PatchElementsOptions) void {
+        // always just swap to new command
         self.end();
-        self.protocol = protocol;
+        self.command = command;
+        self.patch_options = opt;
     }
 
     pub fn end(self: *Message) void {
         if (self.started) {
             self.started = false;
+            self.line_in_progress = false;
             self.stream.writer().writeAll("\n\n") catch return;
         }
     }
@@ -235,6 +234,7 @@ pub fn readSignals(comptime T: type, req: anytype) !T {
 }
 
 const SessionType = ?[]const u8;
+const StreamList = std.ArrayList(std.net.Stream);
 
 pub fn Subscribers(comptime T: type) type {
     return struct {
@@ -280,6 +280,20 @@ pub fn Subscribers(comptime T: type) type {
             self.mutex.lock();
             defer self.mutex.unlock();
 
+            // check first that the given stream isnt already subscribed to this topic !!
+            // if it is, then quit now, because they already have the most recent patch update
+            // and we DONT want to get into a state where we close a socket then attempt to
+            // write to it again in the same publish loop
+            {
+                if (self.subs.getPtr(topic)) |subs| {
+                    for (subs.items) |sub| {
+                        if (sub.stream.handle == stream.handle) {
+                            std.debug.print("Stream {d} is already subscribed to topic {s} ... ignoring. Fix Your Code !\n", .{ stream.handle, topic });
+                            return;
+                        }
+                    }
+                }
+            }
             // on first subscription, try to write the output first
             // if it works, then we add them to the subscriber list
             std.debug.print("calling the initial subscribe callback function for topic {s} on stream {d}\n", .{ topic, stream.handle });
@@ -312,15 +326,51 @@ pub fn Subscribers(comptime T: type) type {
             }
         }
 
+        fn purge(self: *Self, streams: StreamList) void {
+            if (streams.items.len == 0) return;
+
+            const t1 = std.time.microTimestamp();
+            defer {
+                std.debug.print("Purge took only {d}μs\n", .{std.time.microTimestamp() - t1});
+            }
+
+            // for each topic - go through all subscriptions and remove the matching stream
+            var iterator = self.subs.iterator();
+            while (iterator.next()) |*entry| {
+                const topic = entry.key_ptr.*;
+                var subs = entry.value_ptr;
+
+                // traverse the list backwards, so its safe to drop elements during the traversal
+                var i: usize = subs.items.len;
+                while (i > 0) {
+                    i -= 1;
+                    const sub = subs.items[i];
+                    for (streams.items) |stream| {
+                        if (sub.stream.handle == stream.handle) {
+                            _ = subs.swapRemove(i);
+                            std.debug.print("Closing subscriber {}:{d} on topic {s}\n", .{ i, sub.stream.handle, topic });
+                        }
+                    }
+                }
+            }
+        }
+
         pub fn publish(self: *Self, topic: []const u8) !void {
             return self.publishSession(topic, null);
         }
 
         pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void {
             self.mutex.lock();
-            defer self.mutex.unlock();
+            var dead_streams = StreamList.init(self.gpa);
+            defer {
+                if (dead_streams.items.len > 0) {
+                    self.purge(dead_streams);
+                }
+                dead_streams.deinit();
+                self.mutex.unlock();
+            }
 
-            std.debug.print("publish on topic {s} for session {?s}\n", .{ topic, session });
+            // std.debug.print("publish on topic {s} for session {?s}\n", .{ topic, session });
             if (self.subs.getPtr(topic)) |subs| {
                 // traverse the list backwards, so its safe to drop elements during the traversal
                 var i: usize = subs.items.len;
@@ -329,34 +379,46 @@ pub fn Subscribers(comptime T: type) type {
                     var sub = subs.items[i];
                     if (sub.session == null) {
                         // we publish everything, without passing a session value
-                        std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
+                        // std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
                         @call(.auto, sub.action, .{ self.app, sub.stream, null }) catch |err| {
-                            sub.stream.close();
-                            _ = subs.swapRemove(i);
-                            std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                            switch (err) {
+                                error.NotOpenForWriting => {},
+                                else => {
+                                    sub.stream.close();
+                                },
+                            }
+                            try dead_streams.append(sub.stream);
                         };
                     } else {
                         if (session) |sv| {
                             // only publish subs where the session value matches what we ask for
                             if (sub.session) |ss| {
                                 if (std.mem.eql(u8, sv, ss)) {
-                                    std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
+                                    // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
                                     @call(.auto, sub.action, .{ self.app, sub.stream, ss }) catch |err| {
-                                        sub.stream.close();
+                                        switch (err) {
+                                            error.NotOpenForWriting => {},
+                                            else => {
+                                                sub.stream.close();
+                                            },
+                                        }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
-                                        _ = subs.swapRemove(i);
-                                        std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                                        try dead_streams.append(sub.stream);
                                     };
                                 }
                             }
                         } else {
                             // publish all
-                            std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
+                            // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
                             @call(.auto, sub.action, .{ self.app, sub.stream, sub.session }) catch |err| {
-                                sub.stream.close();
+                                switch (err) {
+                                    error.NotOpenForWriting => {},
+                                    else => {
+                                        sub.stream.close();
+                                    },
+                                }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
-                                _ = subs.swapRemove(i);
-                                std.debug.print("Closing subscriber {}:{any} on topic {s} - error {}\n", .{ i, sub.stream.handle, topic, err });
+                                try dead_streams.append(sub.stream);
                             };
                         }
                     }

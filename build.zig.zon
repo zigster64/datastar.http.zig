@@ -6,16 +6,14 @@
     .dependencies = .{
         .httpz = .{
             // using the dev branch so we are on zig 0.15.dev
+            // Im still using version 855, later versions of zig dev (and http.zig dev) are so out of whack
+            // due to writergate and other stdlib changes, that Im pinning things to this stable commit here :)
             .url = "git+https://github.com/karlseguin/http.zig?ref=dev#aa65ee07b8ea47b7e3d6105c3135630d372d0fea",
             .hash = "httpz-0.0.0-PNVzrAvDBgCyEuvLZqN-dPEudxSOs0mqYg3hP7TGa3Cx",
         },
         .logz = .{
             .url = "git+https://github.com/karlseguin/log.zig#db6ec9818cc6dabf853c3271d8fecb7af5d4755c",
             .hash = "logz-0.0.0-O9YWXlhHAgD8srw1WqQ2SPde3T674hoD3mGFPCVCWFPS",
-        },
-        .zts = .{
-            .url = "git+https://github.com/zigster64/zts.git#a58ea25255232ff04f63cfb25fd44a5494ef1a84",
-            .hash = "zts-0.14.1-AAAAABazAgAWx8_iVDidfnwfB9M4EtnVzUfqgdmw6qjU",
         },
     },
     .paths = .{
