@@ -81,18 +81,17 @@ pub const Message = struct {
         return m;
     }
 
-    pub fn swapTo(self: *Message, command: Command) void {
-        if (self.command == command) {
-            return;
-        }
-        // swap to new command
+    pub fn swapTo(self: *Message, command: Command, opt: PatchElementsOptions) void {
+        // always just swap to new command
         self.end();
         self.command = command;
+        self.patch_options = opt;
     }
 
     pub fn end(self: *Message) void {
         if (self.started) {
             self.started = false;
+            self.line_in_progress = false;
             self.stream.writer().writeAll("\n\n") catch return;
         }
     }
