@@ -56,7 +56,7 @@ pub const App = struct {
     }
 
     pub fn deinit(app: *App) void {
-        app.cats.deinit();
+        app.cats.deinit(app.gpa);
         app.gpa.destroy(app);
     }
 
@@ -82,7 +82,7 @@ pub const App = struct {
         defer msg.end();
 
         // UGLY - doing very manual updates on the signals array below ... ok for demo with only 6 cats, but dont do this in real life please
-        var w = msg.writer();
+        var w = &msg.interface;
         try w.print(
             \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
         , .{
@@ -104,33 +104,34 @@ pub const App = struct {
 };
 
 fn createCats(gpa: Allocator) !Cats {
-    var cats = Cats.init(gpa);
-    try cats.append(.{
+    var cats: Cats = .empty;
+    errdefer cats.deinit(gpa);
+    try cats.append(gpa, .{
         .id = 0,
         .name = "Harry",
         .img = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y2F0fGVufDB8fDB8fHww",
     });
-    try cats.append(.{
+    try cats.append(gpa, .{
         .id = 1,
         .name = "Meghan",
         .img = "https://images.unsplash.com/photo-1574144611937-0df059b5ef3e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fGNhdHxlbnwwfHwwfHx8MA%3D%3D",
     });
-    try cats.append(.{
+    try cats.append(gpa, .{
         .id = 2,
         .name = "Prince",
         .img = "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fGNhdHxlbnwwfHwwfHx8MA%3D%3D",
     });
-    try cats.append(.{
+    try cats.append(gpa, .{
         .id = 3,
         .name = "Fluffy",
         .img = "https://plus.unsplash.com/premium_photo-1664299749481-ac8dc8b49754?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8Y2F0fGVufDB8fDB8fHww",
     });
-    try cats.append(.{
+    try cats.append(gpa, .{
         .id = 4,
         .name = "Princessa",
         .img = "https://images.unsplash.com/photo-1472491235688-bdc81a63246e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8Y2F0fGVufDB8fDB8fHww",
     });
-    try cats.append(.{
+    try cats.append(gpa, .{
         .id = 5,
         .name = "Tiger",
         .img = "https://plus.unsplash.com/premium_photo-1673967770669-91b5c2f2d0ce?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8a2l0dGVufGVufDB8fDB8fHww",

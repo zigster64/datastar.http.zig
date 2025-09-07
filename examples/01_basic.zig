@@ -110,7 +110,7 @@ fn patchElements(_: *httpz.Request, res: *httpz.Response) !void {
     var msg = datastar.patchElements(stream);
     defer msg.end();
 
-    var w = msg.writer();
+    var w = &msg.interface;
     try w.print(
         \\<p id="mf-patch">This is update number {d}</p>
     , .{getCountAndIncrement()});
@@ -160,7 +160,7 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     });
     defer msg.end();
 
-    var w = msg.writer();
+    var w = &msg.interface;
     switch (patch_mode) {
         .replace => {
             try w.writeAll(
@@ -194,7 +194,7 @@ fn patchElementsOptsReset(_: *httpz.Request, res: *httpz.Response) !void {
     });
     defer msg.end();
 
-    var w = msg.writer();
+    var w = &msg.interface;
     try w.writeAll(@embedFile("01_index_opts.html"));
 }
 
@@ -223,7 +223,7 @@ fn patchSignals(_: *httpz.Request, res: *httpz.Response) !void {
 
     // create a random color
 
-    var w = msg.writer();
+    var w = &msg.interface;
 
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
@@ -246,7 +246,7 @@ fn patchSignalsOnlyIfMissing(_: *httpz.Request, res: *httpz.Response) !void {
 
     // create a random color
 
-    var w = msg.writer();
+    var w = &msg.interface;
 
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 1, 100);
@@ -273,7 +273,7 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     defer msg.end();
 
     // Sending a message to remove the following json-formatted signals
-    var w = msg.writer();
+    var w = &msg.interface;
     // Formatting of json payload
 
     const first = names_iter.next();
@@ -312,7 +312,7 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
         \\console.log(parent.outerHTML);
     ;
 
-    var w = msg.writer();
+    var w = &msg.interface;
     try w.writeAll(script_data);
 
     const t2 = std.time.microTimestamp();
@@ -349,7 +349,7 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
     });
     defer msg.end();
 
-    var w = msg.writer();
+    var w = &msg.interface;
 
     var it = std.mem.splitAny(u8, data, "\n");
     while (it.next()) |line| {

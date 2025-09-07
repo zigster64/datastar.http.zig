@@ -58,15 +58,25 @@ pub const Message = struct {
     only_if_missing: bool = false,
     line_in_progress: bool = false,
     keep_script: bool = false,
+    interface: std.Io.Writer,
 
-    const Writer = std.io.Writer(
-        *Message,
-        anyerror,
-        write,
-    );
+    // const Writer = std.io.Writer(
+    //     *Message,
+    //     anyerror,
+    //     write,
+    // );
 
     pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype) Message {
-        var m = Message{ .stream = stream, .command = command };
+        var m = Message{
+            .stream = stream,
+            .command = command,
+            .interface = .{
+                .buffer = &.{},
+                .vtable = &.{
+                    .drain = &drain,
+                },
+            },
+        };
         switch (command) {
             .patchElements => {
                 m.patch_options = opt; // must be a PatchElementsOptions
@@ -92,12 +102,16 @@ pub const Message = struct {
         if (self.started) {
             self.started = false;
             self.line_in_progress = false;
-            self.stream.writer().writeAll("\n\n") catch return;
+            var sw = self.stream.writer(&.{});
+            var w = &sw.interface;
+            w.writeAll("\n\n") catch return;
+            w.flush() catch return;
         }
     }
 
     pub fn header(self: *Message) !void {
-        var w = self.stream.writer();
+        var sw = self.stream.writer(&.{});
+        var w = &sw.interface;
         switch (self.command) {
             .patchElements => {
                 try w.writeAll("event: datastar-patch-elements\n");
@@ -128,12 +142,19 @@ pub const Message = struct {
         self.started = true;
     }
 
-    pub fn write(self: *Message, bytes: []const u8) !usize {
+    fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+        var self: *Message = @fieldParentPtr("interface", w);
+        _ = splat;
+
+        // nothing in buffer yet - will allow buffering later
+
+        // pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {
             try self.header();
         }
 
         var start: usize = 0;
+        const bytes = data[0];
 
         for (bytes, 0..) |b, i| {
             if (b == '\n') {
@@ -204,9 +225,9 @@ pub const Message = struct {
         return bytes.len;
     }
 
-    pub fn writer(self: *Message) Writer {
-        return .{ .context = self };
-    }
+    // pub fn writer(self: *Message) Writer {
+    //     return .{ .context = self };
+    // }
 };
 
 pub fn readSignals(comptime T: type, req: anytype) !T {

@@ -288,7 +288,7 @@ pub const App = struct {
         var msg = datastar.patchElements(stream);
         defer msg.end();
 
-        var w = msg.writer();
+        var w = &msg.interface;
         try w.print(
             \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 h-fit">
         , .{});
@@ -320,7 +320,7 @@ pub const App = struct {
         var msg = datastar.patchSignals(stream);
         defer msg.end();
 
-        var w = msg.writer();
+        var w = &msg.interface;
         try w.print("{{ carrots: {d}, radishes: {d}, gourds: {d}, onions: {d} }}", .{
             app.crop_counts[0],
             app.crop_counts[1],
