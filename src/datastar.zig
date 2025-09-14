@@ -58,15 +58,25 @@ pub const Message = struct {
     only_if_missing: bool = false,
     line_in_progress: bool = false,
     keep_script: bool = false,
+    interface: std.Io.Writer,
 
-    const Writer = std.io.Writer(
-        *Message,
-        anyerror,
-        write,
-    );
+    // const Writer = std.io.Writer(
+    //     *Message,
+    //     anyerror,
+    //     write,
+    // );
 
     pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype) Message {
-        var m = Message{ .stream = stream, .command = command };
+        var m = Message{
+            .stream = stream,
+            .command = command,
+            .interface = .{
+                .buffer = &.{},
+                .vtable = &.{
+                    .drain = &drain,
+                },
+            },
+        };
         switch (command) {
             .patchElements => {
                 m.patch_options = opt; // must be a PatchElementsOptions
@@ -92,12 +102,16 @@ pub const Message = struct {
         if (self.started) {
             self.started = false;
             self.line_in_progress = false;
-            self.stream.writer().writeAll("\n\n") catch return;
+            var sw = self.stream.writer(&.{});
+            var w = &sw.interface;
+            w.writeAll("\n\n") catch return;
+            w.flush() catch return;
         }
     }
 
     pub fn header(self: *Message) !void {
-        var w = self.stream.writer();
+        var sw = self.stream.writer(&.{});
+        var w = &sw.interface;
         switch (self.command) {
             .patchElements => {
                 try w.writeAll("event: datastar-patch-elements\n");
@@ -128,33 +142,42 @@ pub const Message = struct {
         self.started = true;
     }
 
-    pub fn write(self: *Message, bytes: []const u8) !usize {
+    fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
+        var self: *Message = @fieldParentPtr("interface", w);
+        _ = splat;
+
+        // nothing in buffer yet - will allow buffering later
+
+        // pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {
             try self.header();
         }
 
         var start: usize = 0;
+        const bytes = data[0];
+        var swriter = self.stream.writer(&.{});
+        var sw = &swriter.interface;
 
         for (bytes, 0..) |b, i| {
             if (b == '\n') {
                 if (self.line_in_progress) {
-                    try self.stream.writer().print("{s}\n", .{bytes[start..i]});
+                    try sw.print("{s}\n", .{bytes[start..i]});
                 } else {
                     switch (self.command) {
                         .patchElements => {
-                            try self.stream.writer().print(
+                            try sw.print(
                                 "data: elements {s}\n",
                                 .{bytes[start..i]},
                             );
                         },
                         .patchSignals => {
-                            try self.stream.writer().print(
+                            try sw.print(
                                 "data: signals {s}\n",
                                 .{bytes[start..i]},
                             );
                         },
                         .executeScript => {
-                            try self.stream.writer().print(
+                            try sw.print(
                                 "data: elements <script{s}>{s}</script>\n",
                                 .{
                                     if (self.keep_script) "" else " data-effect='el.remove()'",
@@ -171,24 +194,24 @@ pub const Message = struct {
 
         if (start < bytes.len) {
             if (self.line_in_progress) {
-                try self.stream.writer().print("{s}", .{bytes[start..]});
+                try sw.print("{s}", .{bytes[start..]});
             } else {
                 // is a completely new line
                 switch (self.command) {
                     .patchElements => {
-                        try self.stream.writer().print(
+                        try sw.print(
                             "data: elements {s}",
                             .{bytes[start..]},
                         );
                     },
                     .patchSignals => {
-                        try self.stream.writer().print(
+                        try sw.print(
                             "data: signals {s}",
                             .{bytes[start..]},
                         );
                     },
                     .executeScript => {
-                        try self.stream.writer().print(
+                        try sw.print(
                             "data: elements <script{s}>{s}</script>",
                             .{
                                 if (self.keep_script) "" else " data-effect='el.remove()'",
@@ -204,9 +227,9 @@ pub const Message = struct {
         return bytes.len;
     }
 
-    pub fn writer(self: *Message) Writer {
-        return .{ .context = self };
-    }
+    // pub fn writer(self: *Message) Writer {
+    //     return .{ .context = self };
+    // }
 };
 
 pub fn readSignals(comptime T: type, req: anytype) !T {
@@ -313,10 +336,10 @@ pub fn Subscribers(comptime T: type) type {
                 new_sub.session = try self.gpa.dupe(u8, sv);
             }
             if (self.subs.getPtr(topic)) |subs| {
-                try subs.append(new_sub);
+                try subs.append(self.gpa, new_sub);
             } else {
-                var new_sublist = std.ArrayList(Subscription).init(self.gpa);
-                try new_sublist.append(new_sub);
+                var new_sublist: std.ArrayList(Subscription) = .empty;
+                try new_sublist.append(self.gpa, new_sub);
                 try self.subs.put(topic, new_sublist);
             }
 
@@ -361,12 +384,12 @@ pub fn Subscribers(comptime T: type) type {
 
         pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void {
             self.mutex.lock();
-            var dead_streams = StreamList.init(self.gpa);
+            var dead_streams: StreamList = .empty;
             defer {
                 if (dead_streams.items.len > 0) {
                     self.purge(dead_streams);
                 }
-                dead_streams.deinit();
+                dead_streams.deinit(self.gpa);
                 self.mutex.unlock();
             }
 
@@ -387,7 +410,7 @@ pub fn Subscribers(comptime T: type) type {
                                     sub.stream.close();
                                 },
                             }
-                            try dead_streams.append(sub.stream);
+                            try dead_streams.append(self.gpa, sub.stream);
                         };
                     } else {
                         if (session) |sv| {
@@ -403,7 +426,7 @@ pub fn Subscribers(comptime T: type) type {
                                             },
                                         }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
-                                        try dead_streams.append(sub.stream);
+                                        try dead_streams.append(self.gpa, sub.stream);
                                     };
                                 }
                             }
@@ -418,7 +441,7 @@ pub fn Subscribers(comptime T: type) type {
                                     },
                                 }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
-                                try dead_streams.append(sub.stream);
+                                try dead_streams.append(self.gpa, sub.stream);
                             };
                         }
                     }
