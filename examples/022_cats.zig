@@ -90,7 +90,7 @@ pub const App = struct {
         std.debug.print("Sessions :\n", .{});
         var it = app.sessions.keyIterator();
         while (it.next()) |k| {
-            std.debug.print("K {s}\n", .{k});
+            std.debug.print("K {s}\n", .{k.*});
         }
 
         return s;
@@ -170,7 +170,7 @@ pub const App = struct {
         // TODO - this is uneccessarily ugly, but its still quick, so nobody is going to care
         // sort by id first to get all the bid signals correct
         app.sortCats(.id);
-        var w = msg.writer();
+        var w = &msg.interface;
         try w.print(
             \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
         , .{

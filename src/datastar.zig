@@ -155,27 +155,29 @@ pub const Message = struct {
 
         var start: usize = 0;
         const bytes = data[0];
+        var swriter = self.stream.writer(&.{});
+        var sw = &swriter.interface;
 
         for (bytes, 0..) |b, i| {
             if (b == '\n') {
                 if (self.line_in_progress) {
-                    try self.stream.writer().print("{s}\n", .{bytes[start..i]});
+                    try sw.print("{s}\n", .{bytes[start..i]});
                 } else {
                     switch (self.command) {
                         .patchElements => {
-                            try self.stream.writer().print(
+                            try sw.print(
                                 "data: elements {s}\n",
                                 .{bytes[start..i]},
                             );
                         },
                         .patchSignals => {
-                            try self.stream.writer().print(
+                            try sw.print(
                                 "data: signals {s}\n",
                                 .{bytes[start..i]},
                             );
                         },
                         .executeScript => {
-                            try self.stream.writer().print(
+                            try sw.print(
                                 "data: elements <script{s}>{s}</script>\n",
                                 .{
                                     if (self.keep_script) "" else " data-effect='el.remove()'",
@@ -192,24 +194,24 @@ pub const Message = struct {
 
         if (start < bytes.len) {
             if (self.line_in_progress) {
-                try self.stream.writer().print("{s}", .{bytes[start..]});
+                try sw.print("{s}", .{bytes[start..]});
             } else {
                 // is a completely new line
                 switch (self.command) {
                     .patchElements => {
-                        try self.stream.writer().print(
+                        try sw.print(
                             "data: elements {s}",
                             .{bytes[start..]},
                         );
                     },
                     .patchSignals => {
-                        try self.stream.writer().print(
+                        try sw.print(
                             "data: signals {s}",
                             .{bytes[start..]},
                         );
                     },
                     .executeScript => {
-                        try self.stream.writer().print(
+                        try sw.print(
                             "data: elements <script{s}>{s}</script>",
                             .{
                                 if (self.keep_script) "" else " data-effect='el.remove()'",
@@ -334,10 +336,10 @@ pub fn Subscribers(comptime T: type) type {
                 new_sub.session = try self.gpa.dupe(u8, sv);
             }
             if (self.subs.getPtr(topic)) |subs| {
-                try subs.append(new_sub);
+                try subs.append(self.gpa, new_sub);
             } else {
-                var new_sublist = std.ArrayList(Subscription).init(self.gpa);
-                try new_sublist.append(new_sub);
+                var new_sublist: std.ArrayList(Subscription) = .empty;
+                try new_sublist.append(self.gpa, new_sub);
                 try self.subs.put(topic, new_sublist);
             }
 
@@ -382,12 +384,12 @@ pub fn Subscribers(comptime T: type) type {
 
         pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void {
             self.mutex.lock();
-            var dead_streams = StreamList.init(self.gpa);
+            var dead_streams: StreamList = .empty;
             defer {
                 if (dead_streams.items.len > 0) {
                     self.purge(dead_streams);
                 }
-                dead_streams.deinit();
+                dead_streams.deinit(self.gpa);
                 self.mutex.unlock();
             }
 
@@ -408,7 +410,7 @@ pub fn Subscribers(comptime T: type) type {
                                     sub.stream.close();
                                 },
                             }
-                            try dead_streams.append(sub.stream);
+                            try dead_streams.append(self.gpa, sub.stream);
                         };
                     } else {
                         if (session) |sv| {
@@ -424,7 +426,7 @@ pub fn Subscribers(comptime T: type) type {
                                             },
                                         }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
-                                        try dead_streams.append(sub.stream);
+                                        try dead_streams.append(self.gpa, sub.stream);
                                     };
                                 }
                             }
@@ -439,7 +441,7 @@ pub fn Subscribers(comptime T: type) type {
                                     },
                                 }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
-                                try dead_streams.append(sub.stream);
+                                try dead_streams.append(self.gpa, sub.stream);
                             };
                         }
                     }
