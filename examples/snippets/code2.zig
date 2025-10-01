@@ -1,12 +1,9 @@
 == text/html handler ==
 
-const stream = try res.startEventStreamSync();
-defer stream.close();
+var sse = try datastar.NewSSE(req, res);
+defer sse.close();
 
-var msg = datastar.patchElements(stream);
-defer msg.end();
-
-var w = msg.writer();
+var w = sse.patchElements(.{});
 try w.print(
     \\<p id="mf-patch">This is update number {d}</p>
 , .{getCountAndIncrement()});

@@ -3,11 +3,11 @@
 const sample = req.param("sample").?;
 const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
-const stream = try res.startEventStreamSync();
-defer stream.close();
+// these are short lived updates so we close the request as soon as its done
+var sse = try datastar.NewSSE(req, res);
+defer sse.close();
 
-var msg = datastar.executeScript(stream);
-defer msg.end();
+var w = sse.executeScript(.{});
 
 const script_data = if (sample_id == 1)
     "console.log('Running from executescript!');"
@@ -16,5 +16,4 @@ else
     \\console.log(parent.outerHTML);
 ;
 
-var w = msg.writer();
 try w.writeAll(script_data);

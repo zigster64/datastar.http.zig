@@ -19,45 +19,96 @@ pub const PatchElementsOptions = struct {
     mode: PatchMode = .outer,
     selector: ?[]const u8 = null,
     view_transition: bool = false,
+    event_id: ?[]const u8 = null, // TODO - add this to the output
+    retry_duration: ?i64 = null, // TODO - add this to the output
 };
 
-pub fn patchElements(stream: std.net.Stream) Message {
-    return patchElementsOpt(stream, .{});
-}
+pub const PatchSignalsOptions = struct {
+    only_if_missing: bool = false,
+    event_id: ?[]const u8 = null, // TODO - add this to the output
+    retry_duration: ?i64 = null, // TODO - add this to the output
+};
 
-pub fn patchElementsOpt(stream: std.net.Stream, opt: PatchElementsOptions) Message {
-    return Message.init(stream, .patchElements, opt);
-}
+pub const ExecuteScriptOptions = struct {
+    auto_remove: bool = true, // by default remove the script after use, otherwise explicity set this to false if you want to keep the script loaded
+    attributes: ?[][]const u8 = null,
+    event_id: ?[]const u8 = null,
+    retry_duration: ?i64 = null, // TODO - add this to the output
+};
 
-pub fn patchSignals(stream: std.net.Stream) Message {
-    return Message.init(stream, .patchSignals, false);
-}
+pub const SSE = struct {
+    stream: std.net.Stream = undefined,
+    msg: ?Message = null,
 
-pub fn patchSignalsIfMissing(stream: std.net.Stream) Message {
-    return Message.init(stream, .patchSignals, true);
-}
+    /// use close() to flush out the data to the SSE connection, then close the connection
+    pub fn close(self: *SSE) void {
+        self.flush();
+        self.stream.close();
+    }
 
-pub fn executeScript(stream: std.net.Stream) Message {
-    return Message.init(stream, .executeScript, true);
-}
+    /// use flush() to flush out all the data to the SSE connection, keeps connection open
+    pub fn flush(self: *SSE) void {
+        if (self.msg) |*msg| msg.end();
+    }
 
-pub fn executeScriptKeep(stream: std.net.Stream) Message {
-    return Message.init(stream, .executeScript, false);
-}
+    pub fn writer(self: *Message) ?*std.Io.Writer {
+        if (self.msg) |msg| {
+            return &msg.interface;
+        }
+        return null;
+    }
 
-pub fn removeElements(stream: std.net.Stream, selector: []const u8) !void {
-    const w = stream.writer();
-    try w.print("event: datastar-patch-elements\ndata: mode remove\ndata: selector {s}\n\n", .{selector});
+    pub fn patchElements(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer {
+        if (self.msg) |*msg| {
+            msg.swapTo(.patchElements, opt);
+        } else {
+            self.msg = Message.init(self.stream, .patchElements, opt);
+        }
+        return &self.msg.?.interface;
+    }
+
+    pub fn patchSignals(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer {
+        if (self.msg) |*msg| {
+            msg.swapTo(.patchSignals, opt);
+        } else {
+            self.msg = Message.init(self.stream, .patchSignals, opt);
+        }
+        return &self.msg.?.interface;
+    }
+
+    pub fn executeScript(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer {
+        if (self.msg) |*msg| {
+            msg.swapTo(.executeScript, opt);
+        } else {
+            self.msg = Message.init(self.stream, .executeScript, opt);
+        }
+        return &self.msg.?.interface;
+    }
+
+    // pub fn removeElements(stream: std.net.Stream, selector: []const u8) !void {
+    //     const w = stream.writer();
+    //     try w.print("event: datastar-patch-elements\ndata: mode remove\ndata: selector {s}\n\n", .{selector});
+    // }
+};
+
+pub fn NewSSE(req: anytype, res: anytype) !SSE {
+    _ = req;
+    const stream = try res.startEventStreamSync();
+    return SSE{
+        .stream = stream,
+    };
 }
 
 pub const Message = struct {
     stream: std.net.Stream,
     started: bool = false,
     command: Command = .patchElements,
-    patch_options: PatchElementsOptions = .{},
-    only_if_missing: bool = false,
+
+    patch_element_options: PatchElementsOptions = .{},
+    patch_signal_options: PatchSignalsOptions = .{},
+    execute_script_options: ExecuteScriptOptions = .{},
+
     line_in_progress: bool = false,
-    keep_script: bool = false,
     interface: std.Io.Writer,
 
     // const Writer = std.io.Writer(
@@ -79,23 +130,33 @@ pub const Message = struct {
         };
         switch (command) {
             .patchElements => {
-                m.patch_options = opt; // must be a PatchElementsOptions
+                m.patch_element_options = opt;
             },
             .patchSignals => {
-                m.only_if_missing = opt; // must be a bool
+                m.patch_signal_options = opt;
             },
             .executeScript => {
-                m.keep_script = opt; // must be a bool
+                m.execute_script_options = opt;
             },
         }
         return m;
     }
 
-    pub fn swapTo(self: *Message, command: Command, opt: PatchElementsOptions) void {
+    pub fn swapTo(self: *Message, comptime command: Command, opt: anytype) void {
         // always just swap to new command
         self.end();
         self.command = command;
-        self.patch_options = opt;
+        switch (command) {
+            .patchElements => {
+                self.patch_element_options = opt;
+            },
+            .patchSignals => {
+                self.patch_signal_options = opt;
+            },
+            .executeScript => {
+                self.execute_script_options = opt;
+            },
+        }
     }
 
     pub fn end(self: *Message) void {
@@ -112,13 +173,14 @@ pub const Message = struct {
     pub fn header(self: *Message) !void {
         var sw = self.stream.writer(&.{});
         var w = &sw.interface;
+        // TODO - apply all the other missing options that I havnt covered yet
         switch (self.command) {
             .patchElements => {
                 try w.writeAll("event: datastar-patch-elements\n");
-                if (self.patch_options.selector) |s| {
+                if (self.patch_element_options.selector) |s| {
                     try w.print("data: selector {s}\n", .{s});
                 }
-                const mt = self.patch_options.mode;
+                const mt = self.patch_element_options.mode;
                 switch (mt) {
                     .outer => {},
                     else => try w.print("data: mode {s}\n", .{@tagName(mt)}),
@@ -126,7 +188,7 @@ pub const Message = struct {
             },
             .patchSignals => {
                 try w.writeAll("event: datastar-patch-signals\n");
-                if (self.only_if_missing) {
+                if (self.patch_signal_options.only_if_missing) {
                     try w.writeAll("data: onlyIfMissing true\n");
                 }
             },
@@ -180,7 +242,7 @@ pub const Message = struct {
                             try sw.print(
                                 "data: elements <script{s}>{s}</script>\n",
                                 .{
-                                    if (self.keep_script) "" else " data-effect='el.remove()'",
+                                    if (!self.execute_script_options.auto_remove) "" else " data-effect='el.remove()'",
                                     bytes[start..i],
                                 },
                             );
@@ -214,7 +276,7 @@ pub const Message = struct {
                         try sw.print(
                             "data: elements <script{s}>{s}</script>",
                             .{
-                                if (self.keep_script) "" else " data-effect='el.remove()'",
+                                if (!self.execute_script_options.auto_remove) "" else " data-effect='el.remove()'",
                                 bytes[start..],
                             },
                         );

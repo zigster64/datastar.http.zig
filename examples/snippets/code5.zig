@@ -1,15 +1,9 @@
 == patchSignals handler ==
 
-// these are short lived updates so we close the request as soon as its done
-const stream = try res.startEventStreamSync();
-defer stream.close();
+var sse = try datastar.NewSSE(req, res);
+defer sse.close();
 
-var msg = datastar.patchSignals(stream);
-defer msg.end();
-
-// create a random color
-
-var w = msg.writer();
+var w = sse.patchSignals(.{});
 
 // this will set the following signals
 const foo = prng.random().intRangeAtMost(u8, 0, 255);

@@ -1,15 +1,9 @@
 == patchSignalsOnlyIfMissing handler ==
 
-// these are short lived updates so we close the request as soon as its done
-const stream = try res.startEventStreamSync();
-defer stream.close();
+var sse = try datastar.NewSSE(req, res);
+defer sse.close();
 
-var msg = datastar.patchSignalsIfMissing(stream);
-defer msg.end();
-
-// create a random color
-
-var w = msg.writer();
+var w = sse.patchSignals(.{ .only_if_missing = true });
 
 // this will set the following signals
 const foo = prng.random().intRangeAtMost(u8, 1, 100);
