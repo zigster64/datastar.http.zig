@@ -1,4 +1,4 @@
-== text/html handler ==
+== patchElements handler ==
 
 var sse = try datastar.NewSSE(req, res);
 defer sse.close();
