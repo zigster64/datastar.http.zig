@@ -191,30 +191,31 @@ fn patchElementsOptsReset(req: *httpz.Request, res: *httpz.Response) !void {
 
 fn jsonSignals(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
-    defer {
-        const t2 = std.time.microTimestamp();
-        logz.info().string("event", "jsonSignals").int("elapsed (μs)", t2 - t1).log();
-    }
 
-    try res.json(.{
-        .fooj = prng.random().intRangeAtMost(u8, 0, 255),
-        .barj = prng.random().intRangeAtMost(u8, 0, 255),
-    }, .{});
+    // this will set the following signals, by just outputting a JSON response rather than an SSE response
+    const foo = prng.random().intRangeAtMost(u8, 0, 255);
+    const bar = prng.random().intRangeAtMost(u8, 0, 255);
+
+    try res.json(.{ .fooj = foo, .barj = bar }, .{});
+
+    const t2 = std.time.microTimestamp();
+    logz.info().string("event", "patchSignals").int("fooj", foo).int("barj", bar).int("elapsed (μs)", t2 - t1).log();
 }
 
 fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
+    // Outputs a formatted patch-signals SSE response to update signals
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    var w = sse.patchSignals(.{});
-
-    // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
-    try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar });
+
+    try sse.patchSignals(.{
+        .foo = foo,
+        .bar = bar,
+    }, .{}, .{});
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
@@ -227,13 +228,19 @@ fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    var w = sse.patchSignals(.{ .only_if_missing = true });
-
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 1, 100);
     const bar = prng.random().intRangeAtMost(u8, 1, 100);
-    try w.print("{{ foo: {d}, bar: {d} }}", .{ foo, bar }); // first will update only
-    //
+
+    try sse.patchSignals(
+        .{
+            .foo = foo,
+            .bar = bar,
+        },
+        .{},
+        .{ .only_if_missing = true },
+    );
+
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
 }
@@ -250,7 +257,7 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    var w = sse.patchSignals(.{});
+    var w = sse.patchSignalsWriter(.{});
 
     // Formatting of json payload
     const first = names_iter.next();
@@ -280,16 +287,31 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    var w = sse.executeScript(.{});
+    // make up an array of attributes for this
+    var attribs = datastar.ScriptAttributes.init(res.arena);
+    try attribs.put("type", "text/javascript");
+    try attribs.put("trace", "true");
+    try attribs.put("aardvark", "should appear last, not first");
 
-    const script_data = if (sample_id == 1)
-        "console.log('Running from executescript!');"
-    else
-        \\parent = document.querySelector('#executescript-card');
-        \\console.log(parent.outerHTML);
-    ;
-
-    try w.writeAll(script_data);
+    switch (sample_id) {
+        1 => {
+            try sse.executeScript("console.log('Running from executeScript() directly');", .{});
+        },
+        2 => {
+            var w = sse.executeScriptWriter(.{
+                .attributes = attribs,
+            });
+            try w.writeAll(
+                \\console.log('Multiline Script, using executeScriptWriter and writing to it');
+                \\parent = document.querySelector('#execute-script-page');
+                \\console.log(parent.outerHTML);
+            );
+        },
+        else => {
+            var w = sse.executeScriptWriter(.{});
+            try w.print("console.log('Unknown SampleID {d}');", .{sample_id});
+        },
+    }
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "executeScript").int("sample_id", sample_id).int("elapsed (μs)", t2 - t1).log();

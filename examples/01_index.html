@@ -174,8 +174,15 @@
         <div class="card-body">
           <h2 class="card-title">(6) Patch Signals using SSE - only if missing</h2>
           <p class="border-1">Click the button to use PatchSignals to update the signals on the
-            card, but only ones that are missing, so initially thats just 'bar', then nothing updates after that</p>
+            card, but only ones that are missing, so initially thats just 'foo' and bar', then nothing updates after
+            that</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
+
+          <div>
+            <input type="text" readonly data-bind-foo />
+            <input type="text" readonly data-bind-bar />
+          </div>
+
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on-click="@get('/patch/signals/onlymissing')">Patch Signals if
               Missing</button>
@@ -230,7 +237,7 @@
             <button class="btn btn-primary" data-on-click="@get('/executescript/1')">Execute Script</button>
           </div>
           <code class="border-1 bg-gray-400">
-            parent = document.querySelector('#executescript-card');
+            parent = document.querySelector('#execute-script-page');
             console.log(parent.outerHTML);
           </code>
           <div class="justify-end card-actions">

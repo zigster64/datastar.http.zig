@@ -19,21 +19,23 @@ pub const PatchElementsOptions = struct {
     mode: PatchMode = .outer,
     selector: ?[]const u8 = null,
     view_transition: bool = false,
-    event_id: ?[]const u8 = null, // TODO - add this to the output
-    retry_duration: ?i64 = null, // TODO - add this to the output
+    event_id: ?[]const u8 = null,
+    retry_duration: ?i64 = null,
 };
 
 pub const PatchSignalsOptions = struct {
     only_if_missing: bool = false,
-    event_id: ?[]const u8 = null, // TODO - add this to the output
-    retry_duration: ?i64 = null, // TODO - add this to the output
+    event_id: ?[]const u8 = null,
+    retry_duration: ?i64 = null,
 };
+
+pub const ScriptAttributes = std.StringArrayHashMap([]const u8);
 
 pub const ExecuteScriptOptions = struct {
     auto_remove: bool = true, // by default remove the script after use, otherwise explicity set this to false if you want to keep the script loaded
-    attributes: ?[][]const u8 = null,
+    attributes: ?ScriptAttributes = null,
     event_id: ?[]const u8 = null,
-    retry_duration: ?i64 = null, // TODO - add this to the output
+    retry_duration: ?i64 = null,
 };
 
 pub const SSE = struct {
@@ -67,7 +69,17 @@ pub const SSE = struct {
         return &self.msg.?.interface;
     }
 
-    pub fn patchSignals(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer {
+    pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
+        self.flush();
+        var msg = Message.init(self.stream, .patchSignals, opt);
+        try msg.header();
+
+        const json_formatter = std.json.fmt(value, json_opt);
+        try json_formatter.format(&msg.interface);
+        msg.end();
+    }
+
+    pub fn patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer {
         if (self.msg) |*msg| {
             msg.swapTo(.patchSignals, opt);
         } else {
@@ -76,7 +88,16 @@ pub const SSE = struct {
         return &self.msg.?.interface;
     }
 
-    pub fn executeScript(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer {
+    pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
+        self.flush();
+        var msg = Message.init(self.stream, .executeScript, opt);
+        var w = &msg.interface;
+        try msg.header();
+        try w.writeAll(script);
+        msg.end();
+    }
+
+    pub fn executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer {
         if (self.msg) |*msg| {
             msg.swapTo(.executeScript, opt);
         } else {
@@ -165,6 +186,14 @@ pub const Message = struct {
             self.line_in_progress = false;
             var sw = self.stream.writer(&.{});
             var w = &sw.interface;
+
+            switch (self.command) {
+                else => {},
+                .executeScript => {
+                    // need to close off the script tag !!
+                    w.writeAll("</script>") catch return;
+                },
+            }
             w.writeAll("\n\n") catch return;
             w.flush() catch return;
         }
@@ -177,28 +206,56 @@ pub const Message = struct {
         switch (self.command) {
             .patchElements => {
                 try w.writeAll("event: datastar-patch-elements\n");
+                if (self.patch_element_options.event_id) |event_id| {
+                    try w.print("id: {s}\n", .{event_id});
+                }
+                if (self.patch_element_options.retry_duration) |retry| {
+                    try w.print("retry: {}\n", .{retry});
+                }
                 if (self.patch_element_options.selector) |s| {
                     try w.print("data: selector {s}\n", .{s});
                 }
                 const mt = self.patch_element_options.mode;
                 switch (mt) {
                     .outer => {},
-                    else => try w.print("data: mode {s}\n", .{@tagName(mt)}),
+                    else => try w.print("data: mode {t}\n", .{mt}),
                 }
             },
             .patchSignals => {
                 try w.writeAll("event: datastar-patch-signals\n");
+                if (self.patch_signal_options.event_id) |event_id| {
+                    try w.print("id: {s}\n", .{event_id});
+                }
+                if (self.patch_signal_options.retry_duration) |retry| {
+                    try w.print("retry: {}\n", .{retry});
+                }
                 if (self.patch_signal_options.only_if_missing) {
                     try w.writeAll("data: onlyIfMissing true\n");
                 }
             },
             .executeScript => {
-                try w.writeAll(
-                    \\event: datastar-patch-elements
-                    \\data: mode append
-                    \\data: selector body
-                    \\
-                );
+                try w.writeAll("event: datastar-patch-elements\n");
+                if (self.execute_script_options.event_id) |event_id| {
+                    try w.print("id: {s}\n", .{event_id});
+                }
+                if (self.execute_script_options.retry_duration) |retry| {
+                    try w.print("retry: {}\n", .{retry});
+                }
+                try w.writeAll("data: mode append\ndata: selector body\ndata: elements <script");
+
+                // now add the attribs if any are supplied
+                if (self.execute_script_options.attributes) |attribs| {
+                    for (attribs.keys(), attribs.values()) |key, value| {
+                        try w.print(" {s}=\"{s}\"", .{ key, value });
+                    }
+                }
+                if (self.execute_script_options.auto_remove) {
+                    try w.writeAll(" data-effect=\"el.remove()\"");
+                }
+
+                // TODO - append the array of attribs here
+                try w.writeAll(">");
+                self.line_in_progress = true; // because the script content is appended to the script declaration line !!
             },
         }
         self.started = true;
@@ -260,7 +317,7 @@ pub const Message = struct {
             } else {
                 // is a completely new line
                 switch (self.command) {
-                    .patchElements => {
+                    .patchElements, .executeScript => {
                         try sw.print(
                             "data: elements {s}",
                             .{bytes[start..]},
@@ -270,15 +327,6 @@ pub const Message = struct {
                         try sw.print(
                             "data: signals {s}",
                             .{bytes[start..]},
-                        );
-                    },
-                    .executeScript => {
-                        try sw.print(
-                            "data: elements <script{s}>{s}</script>",
-                            .{
-                                if (!self.execute_script_options.auto_remove) "" else " data-effect='el.remove()'",
-                                bytes[start..],
-                            },
                         );
                     },
                 }
