@@ -11,10 +11,98 @@ protocol commands.
 When you `zig build` it will compile several apps into `./zig-out/bin/` to demonstrate different aspects 
 of the api
 
+Using http.zig :
+
 - example_1  shows using the DataStar API using basic SDK handlers
 - example_2  shows an example multi-user auction site for cats with realtime updates
 - example_3  shows an example multi-user pigeon racing betting site with realtime updates
 - example_4  shows an example multi-game, multi-player TicTacToe site, using the backstage actor framework
+- example_5  shows an example multi-player Gardening Simulator
+
+Using zig stdlib http server :
+
+- example_10 as per example_1, but using zig stdlib instead of http.zig
+
+
+
+
+# Functions
+
+## The SSE Object
+
+Calling NewSSE, passing a request and response, will return an object of type SSE.
+
+
+```zig
+    pub fn NewSSE(req, res) !SSE 
+```
+
+This will configure the connnection for SSE transfers, and provides an object with DataStar methods for
+patching elements, patching signals, executing scripts, etc.
+
+When you are finised with the SSE object, you should either :
+
+- Call `sse.close()` if you are done and want to close the connection as part of your handler.
+
+- Otherwise, the SSE connection is left open after you exit your handler function. In this case, you can 
+  access the `sse.stream: std.net.Stream` value and store it for subsequent writes to that open connection. 
+
+- This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, but you can use the value `sse.stream` to roll your own as well. 
+
+## Patching Elements
+
+The SDK Provides 3 functions to patch elements over SSE.
+
+These are all member functions of the SSE type that NewSSE(req, res) returns.
+
+
+```zig
+    pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void
+
+    pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void
+
+    pub fn patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer 
+```
+
+Use `sse.patchElements` to directly patch the DOM with the given "elements" string.
+
+Use `sse.patchElementsFmt` to directly patch the DOM with a formatted print (where elements,args is the format string, args).
+
+Use `sse.patchElementsWriter` to return a writer object that you can programmatically write to using complex logic.
+
+If using the Writer, then be sure to call `sse.flush()` when you are finished writing to it.
+
+PatchElementsOptions is as follows :
+
+```zig
+pub const PatchElementsOptions = struct {
+    mode: PatchMode = .outer,
+    selector: ?[]const u8 = null,
+    view_transition: bool = false,
+    event_id: ?[]const u8 = null,
+    retry_duration: ?i64 = null,
+};
+
+pub const PatchMode = enum {
+    inner,
+    outer,
+    replace,
+    prepend,
+    append,
+    before,
+    after,
+    remove,
+};
+```
+
+See the DataStar documentation for the usage of these options when using patchElements.
+
+Most of the time, you will want to simply pass an empty tuple `.{}` as the options parameter. 
+
+## Patching Signals
+
+## Executing Scripts
+
 
 # DEV STEALTH MODE
 

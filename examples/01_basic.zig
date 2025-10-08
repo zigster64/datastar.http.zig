@@ -107,10 +107,12 @@ fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    var w = sse.patchElements(.{});
-    try w.print(
+    try sse.patchElementsFmt(
         \\<p id="mf-patch">This is update number {d}</p>
-    , .{getCountAndIncrement()});
+    ,
+        .{getCountAndIncrement()},
+        .{},
+    );
 }
 
 // create a patchElements stream, which will write commands over the SSE connection
@@ -151,7 +153,7 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
         return; // dont do morphs - its not relevant to this demo card
     }
 
-    var w = sse.patchElements(.{
+    var w = sse.patchElementsWriter(.{
         .selector = "#mf-patch-opts",
         .mode = patch_mode,
     });
@@ -181,12 +183,9 @@ fn patchElementsOptsReset(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    // read the signals to work out which options to set, checking the name of the
-    // option vs the enum values, and add them relative to the mf-patch-opt item
-    var w = sse.patchElements(.{
+    try sse.patchElements(@embedFile("01_index_opts.html"), .{
         .selector = "#patch-element-card",
     });
-    try w.writeAll(@embedFile("01_index_opts.html"));
 }
 
 fn jsonSignals(_: *httpz.Request, res: *httpz.Response) !void {
@@ -343,7 +342,7 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
     defer sse.close();
 
     const selector = try std.fmt.allocPrint(res.arena, "#code-{s}", .{snip});
-    var w = sse.patchElements(.{
+    var w = sse.patchElementsWriter(.{
         .selector = selector,
         .mode = .append,
     });

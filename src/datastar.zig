@@ -60,7 +60,25 @@ pub const SSE = struct {
         return null;
     }
 
-    pub fn patchElements(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer {
+    pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
+        self.flush();
+        var msg = Message.init(self.stream, .patchElements, opt);
+        try msg.header();
+        var w = &msg.interface;
+        try w.writeAll(elements);
+        msg.end();
+    }
+
+    pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
+        self.flush();
+        var msg = Message.init(self.stream, .patchElements, opt);
+        try msg.header();
+        var w = &msg.interface;
+        try w.print(elements, args);
+        msg.end();
+    }
+
+    pub fn patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer {
         if (self.msg) |*msg| {
             msg.swapTo(.patchElements, opt);
         } else {
@@ -97,6 +115,15 @@ pub const SSE = struct {
         msg.end();
     }
 
+    pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
+        self.flush();
+        var msg = Message.init(self.stream, .executeScript, opt);
+        var w = &msg.interface;
+        try msg.header();
+        try w.print(script, args);
+        msg.end();
+    }
+
     pub fn executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer {
         if (self.msg) |*msg| {
             msg.swapTo(.executeScript, opt);
@@ -105,11 +132,6 @@ pub const SSE = struct {
         }
         return &self.msg.?.interface;
     }
-
-    // pub fn removeElements(stream: std.net.Stream, selector: []const u8) !void {
-    //     const w = stream.writer();
-    //     try w.print("event: datastar-patch-elements\ndata: mode remove\ndata: selector {s}\n\n", .{selector});
-    // }
 };
 
 pub fn NewSSE(req: anytype, res: anytype) !SSE {
@@ -283,7 +305,7 @@ pub const Message = struct {
                     try sw.print("{s}\n", .{bytes[start..i]});
                 } else {
                     switch (self.command) {
-                        .patchElements => {
+                        .patchElements, .executeScript => {
                             try sw.print(
                                 "data: elements {s}\n",
                                 .{bytes[start..i]},
@@ -293,15 +315,6 @@ pub const Message = struct {
                             try sw.print(
                                 "data: signals {s}\n",
                                 .{bytes[start..i]},
-                            );
-                        },
-                        .executeScript => {
-                            try sw.print(
-                                "data: elements <script{s}>{s}</script>\n",
-                                .{
-                                    if (!self.execute_script_options.auto_remove) "" else " data-effect='el.remove()'",
-                                    bytes[start..i],
-                                },
                             );
                         },
                     }
