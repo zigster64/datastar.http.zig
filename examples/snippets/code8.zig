@@ -7,13 +7,24 @@ const sample_id = try std.fmt.parseInt(u8, sample, 10);
 var sse = try datastar.NewSSE(req, res);
 defer sse.close();
 
-var w = sse.executeScript(.{});
-
-const script_data = if (sample_id == 1)
-    "console.log('Running from executescript!');"
-else
-    \\parent = document.querySelector('#executescript-card');
-    \\console.log(parent.outerHTML);
-;
-
-try w.writeAll(script_data);
+switch (sample_id) {
+    1 => {
+        try sse.executeScript("console.log('Running from executeScript() directly');", .{});
+    },
+    2 => {
+        var w = sse.executeScriptWriter(.{
+            .attributes = attribs,
+        });
+        try w.writeAll(
+            \\console.log('Multiline Script, using executeScriptWriter and writing to it');
+            \\parent = document.querySelector('#execute-script-page');
+            \\console.log(parent.outerHTML);
+        );
+    },
+    3 => {
+        try sse.executeScriptFmt("console.log('Using formatted print {d}');", .{sample_id}, .{});
+    },
+    else => {
+        try sse.executeScriptFmt("console.log('Unknown SampleID {d}');", .{sample_id}, .{});
+    },
+}

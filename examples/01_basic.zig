@@ -233,12 +233,14 @@ fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
 
     try sse.patchSignals(
         .{
-            .foo = foo,
-            .bar = bar,
+            .new_foo = foo,
+            .new_bar = bar,
         },
         .{},
         .{ .only_if_missing = true },
     );
+
+    try sse.executeScript("console.log('Patched new_foo and new_bar, but only if missing');", .{});
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
@@ -306,9 +308,11 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
                 \\console.log(parent.outerHTML);
             );
         },
+        3 => {
+            try sse.executeScriptFmt("console.log('Using formatted print {d}');", .{sample_id}, .{});
+        },
         else => {
-            var w = sse.executeScriptWriter(.{});
-            try w.print("console.log('Unknown SampleID {d}');", .{sample_id});
+            try sse.executeScriptFmt("console.log('Unknown SampleID {d}');", .{sample_id}, .{});
         },
     }
 

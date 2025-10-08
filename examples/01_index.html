@@ -174,7 +174,8 @@
         <div class="card-body">
           <h2 class="card-title">(6) Patch Signals using SSE - only if missing</h2>
           <p class="border-1">Click the button to use PatchSignals to update the signals on the
-            card, but only ones that are missing, so initially thats just 'foo' and bar', then nothing updates after
+            card, but only ones that are missing. so initially thats just 'new_foo' and new_bar', then nothing updates
+            after
             that</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
           <div class="justify-end card-actions">
@@ -208,7 +209,12 @@
               'fooj'</button>
             <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/barj')">Remove Signal
               'barj'</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/foo,bar,fooj,barj')">Remove All
+            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/new_foo')">Remove Signal
+              'new_foo'</button>
+            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/new_bar')">Remove Signal
+              'new_bar'</button>
+            <button class="btn btn-primary"
+              data-on-click="@get('/patch/signals/remove/foo,bar,fooj,barj,new_foo,new_bar')">Remove All
               Signals</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
@@ -235,7 +241,12 @@
             console.log(parent.outerHTML);
           </code>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/executescript/2')">Execute Script</button>
+            <button class="btn btn-primary" data-on-click="@get('/executescript/2')">Execute Script using
+              Writer</button>
+          </div>
+          <div class="justify-end card-actions">
+            <button class="btn btn-warning" data-on-click="@get('/executescript/3')">Execute Script using formatted
+              print</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
