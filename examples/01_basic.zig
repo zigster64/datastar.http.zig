@@ -79,9 +79,17 @@ fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
     defer {
         const t2 = std.time.microTimestamp();
         logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
+        // NOTE - you will see REALLY fast timings on these ones compared to SSE transfers
+        // but thats only because this function exits before doing any writing.
+        // It just sets the response body ... the http engine will do the writing afterwards
+        //
+        // If this function is changed to get a writer to the response, and w.print
+        // directly to the stream just like the SSE methods use,  then you will see the
+        // timings are ballpark the same as doing the SSE calls.
     }
 
     res.content_type = .HTML;
+
     res.body = try std.fmt.allocPrint(
         res.arena,
         \\<p id="text-html">This is update number {d}</p>
@@ -275,7 +283,7 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchSignals").int("foo", null).int("bar", null).int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "patchSignalsRemove").int("foo", null).int("bar", null).int("elapsed (μs)", t2 - t1).log();
 }
 
 fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {

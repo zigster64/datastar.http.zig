@@ -44,13 +44,13 @@ pub const SSE = struct {
 
     /// use close() to flush out the data to the SSE connection, then close the connection
     pub fn close(self: *SSE) void {
-        self.flush();
+        self.flush() catch {};
         self.stream.close();
     }
 
     /// use flush() to flush out all the data to the SSE connection, keeps connection open
-    pub fn flush(self: *SSE) void {
-        if (self.msg) |*msg| msg.end();
+    pub fn flush(self: *SSE) !void {
+        if (self.msg) |*msg| try msg.end();
     }
 
     pub fn writer(self: *Message) ?*std.Io.Writer {
@@ -61,21 +61,21 @@ pub const SSE = struct {
     }
 
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
-        self.flush();
+        try self.flush();
         var msg = Message.init(self.stream, .patchElements, opt);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
-        msg.end();
+        try msg.end();
     }
 
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
-        self.flush();
+        try self.flush();
         var msg = Message.init(self.stream, .patchElements, opt);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
-        msg.end();
+        try msg.end();
     }
 
     pub fn patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer {
@@ -88,13 +88,13 @@ pub const SSE = struct {
     }
 
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
-        self.flush();
+        try self.flush();
         var msg = Message.init(self.stream, .patchSignals, opt);
         try msg.header();
 
         const json_formatter = std.json.fmt(value, json_opt);
         try json_formatter.format(&msg.interface);
-        msg.end();
+        try msg.end();
     }
 
     pub fn patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer {
@@ -107,21 +107,21 @@ pub const SSE = struct {
     }
 
     pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
-        self.flush();
+        try self.flush();
         var msg = Message.init(self.stream, .executeScript, opt);
         var w = &msg.interface;
         try msg.header();
         try w.writeAll(script);
-        msg.end();
+        try msg.end();
     }
 
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
-        self.flush();
+        try self.flush();
         var msg = Message.init(self.stream, .executeScript, opt);
         var w = &msg.interface;
         try msg.header();
         try w.print(script, args);
-        msg.end();
+        try msg.end();
     }
 
     pub fn executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer {
@@ -144,6 +144,7 @@ pub fn NewSSE(req: anytype, res: anytype) !SSE {
 
 pub const Message = struct {
     stream: std.net.Stream,
+    stream_writer: std.net.Stream.Writer,
     started: bool = false,
     command: Command = .patchElements,
 
@@ -153,16 +154,12 @@ pub const Message = struct {
 
     line_in_progress: bool = false,
     interface: std.Io.Writer,
-
-    // const Writer = std.io.Writer(
-    //     *Message,
-    //     anyerror,
-    //     write,
-    // );
+    io_buffer: [255]u8 = undefined,
 
     pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype) Message {
         var m = Message{
             .stream = stream,
+            .stream_writer = stream.writer(&.{}),
             .command = command,
             .interface = .{
                 .buffer = &.{},
@@ -171,6 +168,8 @@ pub const Message = struct {
                 },
             },
         };
+        // m.interface.buffer = m.io_buffer[0..];
+        // m.stream_writer = stream.writer(&m.io_buffer);
         switch (command) {
             .patchElements => {
                 m.patch_element_options = opt;
@@ -187,7 +186,7 @@ pub const Message = struct {
 
     pub fn swapTo(self: *Message, comptime command: Command, opt: anytype) void {
         // always just swap to new command
-        self.end();
+        self.end() catch {};
         self.command = command;
         switch (command) {
             .patchElements => {
@@ -202,28 +201,32 @@ pub const Message = struct {
         }
     }
 
-    pub fn end(self: *Message) void {
+    pub fn end(self: *Message) !void {
+        var me = &self.interface;
+        // std.debug.print("Flushing message, with buffer '{s}', end = {d}\n", .{ me.buffer[0..me.end], me.end });
+        try me.flush();
+        // try me.flush();
         if (self.started) {
             self.started = false;
             self.line_in_progress = false;
-            var sw = self.stream.writer(&.{});
-            var w = &sw.interface;
+            // var sw = self.stream.writer(&.{});
+            var w = &self.stream_writer.interface;
 
             switch (self.command) {
                 else => {},
                 .executeScript => {
                     // need to close off the script tag !!
-                    w.writeAll("</script>") catch return;
+                    try w.writeAll("</script>");
                 },
             }
-            w.writeAll("\n\n") catch return;
-            w.flush() catch return;
+            try w.writeAll("\n\n");
+            try w.flush();
         }
     }
 
     pub fn header(self: *Message) !void {
-        var sw = self.stream.writer(&.{});
-        var w = &sw.interface;
+        // var sw = self.stream.writer(&.{});
+        var w = &self.stream_writer.interface;
         // TODO - apply all the other missing options that I havnt covered yet
         switch (self.command) {
             .patchElements => {
@@ -287,18 +290,23 @@ pub const Message = struct {
         var self: *Message = @fieldParentPtr("interface", w);
         _ = splat;
 
-        // nothing in buffer yet - will allow buffering later
+        // std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
 
         // pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {
             try self.header();
         }
 
-        var start: usize = 0;
-        const bytes = data[0];
-        var swriter = self.stream.writer(&.{});
-        var sw = &swriter.interface;
+        var written: usize = 0;
+        if (w.end > 0) {
+            written += try writeBytes(self, &self.stream_writer.interface, w.buffered());
+        }
+        written += try writeBytes(self, &self.stream_writer.interface, data[0]);
+        return w.consume(written);
+    }
 
+    fn writeBytes(self: *Message, sw: *std.Io.Writer, bytes: []const u8) std.Io.Writer.Error!usize {
+        var start: usize = 0;
         for (bytes, 0..) |b, i| {
             if (b == '\n') {
                 if (self.line_in_progress) {
@@ -349,10 +357,6 @@ pub const Message = struct {
 
         return bytes.len;
     }
-
-    // pub fn writer(self: *Message) Writer {
-    //     return .{ .context = self };
-    // }
 };
 
 pub fn readSignals(comptime T: type, req: anytype) !T {

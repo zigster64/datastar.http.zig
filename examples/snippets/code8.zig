@@ -12,9 +12,7 @@ switch (sample_id) {
         try sse.executeScript("console.log('Running from executeScript() directly');", .{});
     },
     2 => {
-        var w = sse.executeScriptWriter(.{
-            .attributes = attribs,
-        });
+        var w = sse.executeScriptWriter(.{});
         try w.writeAll(
             \\console.log('Multiline Script, using executeScriptWriter and writing to it');
             \\parent = document.querySelector('#execute-script-page');
