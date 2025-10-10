@@ -93,56 +93,6 @@ When you are finised with the SSE object, you should either :
 - This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
 
 
-## SSE IO, buffering and async socket writes
-
-Since Zig 0.15, IO and buffering are now a big deal, and offer some extreme options for fine tuning and optimizing your systems.  This is a good thing, and lots of fun to experiment with.
-
-The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signal and Script updates into the DataStar protocol, and then write them to the socket connection.
-
-By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to DataStar protocol.
-
-With http.zig, this socket writer is already buffered, and uses async IO to drain data to the actual socket connection in the background after your handler exits. This is all taken care of for you.
-
-For most applications, these defaults offer an excellent balance between performance and memory consumption.
-
-For advanced use cases, you can opt in for applying buffering to the SSE operations as well, by setting a default buffer size. 
-
-This will reduce the number of writes between the SSE processor and the underlying to the socket writer, at the expense of one extra allocation per request.
-
-To configure this, use 
-
-```zig
-    datastar.configure(.{ .buffer_size = 255 });
-```
-
-The performance differences between using a buffer or not are quite marginal (we are talking microseconds if at all), but its there if you think you need it.
-
-If you choose to use this, try and set the size of the buffer around the size of your most common smaller outputs, which could be 200-300 bytes depending on your application, or it could be a lot more.
-
-For example - if you set the buffer size to 200, then write 500 bytes to it, you will end up with 3 writes to the underlying stream - 1 for each time the buffer is full, then 1 more to flush the remainder.
-
-The SDK automatically takes care of flushing these intermediate buffers for you.
-
-Benchmark, experiment, and make your own decision about whether buffering improves your app or not, and use what works best for you.
-
-## Using custom buffering for a specific SSE object
-
-In some rare cases, you may want to apply a custom buffer to the SSE stream outside of the default configuration.
-
-Use 
-
-```zig
-    pub fn NewSSEBuffered(req, res, buffer) !SSE 
-```
-
-For example - see `fn code()` in `examples/01_basic.zig`, where it provides its own buffer to the SSE object, where the size is calculated in advance based on the size 
-of the payload.
-
-This is because the `code()` fn uses a tight loop that writes 1 byte at a time to the output. 
-This custom sized buffer allows the whole output to be written into memory before being passed on to the socket writer.
-
-Consider using this if you have a rare case that makes sense.
-
 # Using the DataStar SDK
 
 ## Reading Signals from the request
@@ -272,7 +222,57 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
     try sse.flush(); // dont forget to flush !
 ```
 
+# Advanced Topics
 
+## SSE IO, buffering and async socket writes
+
+Since Zig 0.15, IO and buffering are now a big deal, and offers some extreme options for fine tuning and optimizing your systems.  This is a good thing, and lots of fun to experiment with.
+
+The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signal and Script updates into the DataStar protocol, and then write them to the browser's connection.
+
+By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to DataStar protocol.
+
+With http.zig, this socket writer is already buffered, and uses async IO to drain data to the user's browser in the background after your handler exits. This is all taken care of for you.
+
+For most applications, these defaults offer an excellent balance between performance and memory consumption.
+
+For advanced use cases, you can opt in for applying buffering to the SSE operations as well, by setting a default buffer size. 
+
+This will reduce the number of writes between the SSE processor and the underlying writer to the browser, at the expense of one extra allocation per request.
+
+To configure this, use 
+
+```zig
+    datastar.configure(.{ .buffer_size = 255 });
+```
+
+The performance differences between using a buffer or not are quite marginal (we are talking microseconds if at all), but its there if you think you need it.
+
+If you choose to use this, try and set the size of the buffer around the size of your most common smaller outputs, which could be 200-300 bytes depending on your application, or it could be a lot more.
+
+For example - if you set the buffer size to 200, then write 500 bytes to it, you will end up with 3 writes to the underlying stream - 1 for each time the buffer is full, then 1 more to flush the remainder.
+
+The SDK automatically takes care of flushing these intermediate buffers for you.
+
+Benchmark, experiment, and make your own decision about whether buffering improves your app or not, and use what works best for you.
+
+## Using custom buffering for a specific SSE object
+
+In some rare cases, you may want to apply a custom buffer to the SSE stream outside of the default configuration.
+
+Use 
+
+```zig
+    pub fn NewSSEBuffered(req, res, buffer) !SSE 
+```
+
+For example - see `fn code()` in `examples/01_basic.zig`, where it provides its own buffer to the SSE object, where the size is calculated in advance based on the size 
+of the payload.
+
+This is because the `code()` fn uses a tight loop that writes 1 byte at a time to the output. 
+This custom sized buffer allows the whole output to be written into memory before being passed on to the socket writer.
+
+Consider using this if you have a rare case that makes sense.
 
 
 
