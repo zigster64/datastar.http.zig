@@ -149,13 +149,16 @@ pub const SSE = struct {
 pub fn NewSSE(req: anytype, res: anytype) !SSE {
     _ = req;
     const stream = try res.startEventStreamSync();
-    return SSE{ .stream = stream, .buffer = blk: {
-        if (config.buffer_size == 0) {
-            break :blk &.{};
-        }
-        std.debug.print("Applying config buffer size of {d}\n", .{config.buffer_size});
-        break :blk try res.arena.alloc(u8, config.buffer_size);
-    } };
+    return SSE{
+        .stream = stream,
+        .buffer = blk: {
+            if (config.buffer_size == 0) {
+                break :blk &.{};
+            }
+            // std.debug.print("Applying config buffer size of {d}\n", .{config.buffer_size});
+            break :blk try res.arena.alloc(u8, config.buffer_size);
+        },
+    };
 }
 
 pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
@@ -309,7 +312,7 @@ pub const Message = struct {
         var self: *Message = @fieldParentPtr("interface", w);
         _ = splat;
 
-        std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
+        // std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
 
         // pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {
@@ -319,6 +322,7 @@ pub const Message = struct {
         var written: usize = 0;
         if (w.end > 0) {
             written += try writeBytes(self, &self.stream_writer.interface, w.buffered());
+            // std.debug.print("Message.drain with non-empty buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
         }
         written += try writeBytes(self, &self.stream_writer.interface, data[0]);
         return w.consume(written);
