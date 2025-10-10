@@ -163,14 +163,15 @@ pub const App = struct {
             logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session.?).int("elapsed (μs)", t2 - t1).log();
         }
 
+        var buffer: [1024]u8 = undefined;
+        var sse = datastar.NewSSEFromStream(stream, &buffer);
+
         // Update the HTML in the correct order
-        var msg = datastar.patchElementsOpt(stream, .{ .view_transition = true });
-        defer msg.end();
+        var w = sse.patchElementsWriter(.{ .view_transition = true });
 
         // TODO - this is uneccessarily ugly, but its still quick, so nobody is going to care
         // sort by id first to get all the bid signals correct
         app.sortCats(.id);
-        var w = &msg.interface;
         try w.print(
             \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
         , .{
@@ -194,6 +195,8 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
+
+        try sse.flush();
     }
 };
 
