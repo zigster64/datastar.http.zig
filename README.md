@@ -145,6 +145,26 @@ Consider using this if you have a rare case that makes sense.
 
 # Using the DataStar SDK
 
+## Reading Signals from the request
+
+```zig
+    pub fn readSignals(comptime T: type, req: anytype) !T
+```
+
+Will take a Type (struct) and a HTTP request, and returns a filled in struct of the requested type.
+
+Example :
+```zig
+    const FooBar = struct {
+        foor: []const u8,
+        bar: []const u8,
+    };
+
+    const signals = try datastar.readSignals(FooBar, req);
+    std.debug.print("Request sent foo: {s}, bar: {s}\n", .{signals.foo, signals.bar});
+```
+
+
 ## Patching Elements
 
 The SDK Provides 3 functions to patch elements over SSE.
