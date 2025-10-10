@@ -170,6 +170,8 @@ pub const PatchMode = enum {
 
 See the DataStar documentation for the usage of these options when using patchElements.
 
+https://data-star.dev/reference/sse_events
+
 Most of the time, you will want to simply pass an empty tuple `.{}` as the options parameter. 
 
 ## Patching Signals
