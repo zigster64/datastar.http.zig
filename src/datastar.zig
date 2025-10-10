@@ -38,9 +38,21 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
+const Config = struct {
+    buffer_size: usize = 0,
+    // ... other config options can be added here
+};
+
+var config: Config = .{};
+
+pub fn configure(new_config: Config) void {
+    config = new_config;
+}
+
 pub const SSE = struct {
     stream: std.net.Stream = undefined,
     msg: ?Message = null,
+    buffer: []u8 = &.{},
 
     /// use close() to flush out the data to the SSE connection, then close the connection
     pub fn close(self: *SSE) void {
@@ -62,7 +74,7 @@ pub const SSE = struct {
 
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt);
+        var msg = Message.init(self.stream, .patchElements, opt, self.buffer);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
@@ -71,7 +83,7 @@ pub const SSE = struct {
 
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt);
+        var msg = Message.init(self.stream, .patchElements, opt, self.buffer);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
@@ -82,14 +94,14 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchElements, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchElements, opt);
+            self.msg = Message.init(self.stream, .patchElements, opt, self.buffer);
         }
         return &self.msg.?.interface;
     }
 
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchSignals, opt);
+        var msg = Message.init(self.stream, .patchSignals, opt, self.buffer);
         try msg.header();
 
         const json_formatter = std.json.fmt(value, json_opt);
@@ -101,14 +113,14 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchSignals, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchSignals, opt);
+            self.msg = Message.init(self.stream, .patchSignals, opt, self.buffer);
         }
         return &self.msg.?.interface;
     }
 
     pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt);
+        var msg = Message.init(self.stream, .executeScript, opt, self.buffer);
         var w = &msg.interface;
         try msg.header();
         try w.writeAll(script);
@@ -117,7 +129,7 @@ pub const SSE = struct {
 
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt);
+        var msg = Message.init(self.stream, .executeScript, opt, self.buffer);
         var w = &msg.interface;
         try msg.header();
         try w.print(script, args);
@@ -128,7 +140,7 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.executeScript, opt);
         } else {
-            self.msg = Message.init(self.stream, .executeScript, opt);
+            self.msg = Message.init(self.stream, .executeScript, opt, self.buffer);
         }
         return &self.msg.?.interface;
     }
@@ -137,8 +149,21 @@ pub const SSE = struct {
 pub fn NewSSE(req: anytype, res: anytype) !SSE {
     _ = req;
     const stream = try res.startEventStreamSync();
+    return SSE{ .stream = stream, .buffer = blk: {
+        if (config.buffer_size == 0) {
+            break :blk &.{};
+        }
+        std.debug.print("Applying config buffer size of {d}\n", .{config.buffer_size});
+        break :blk try res.arena.alloc(u8, config.buffer_size);
+    } };
+}
+
+pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
+    _ = req;
+    const stream = try res.startEventStreamSync();
     return SSE{
         .stream = stream,
+        .buffer = buffer,
     };
 }
 
@@ -154,22 +179,19 @@ pub const Message = struct {
 
     line_in_progress: bool = false,
     interface: std.Io.Writer,
-    io_buffer: [255]u8 = undefined,
 
-    pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype) Message {
+    pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype, buffer: []u8) Message {
         var m = Message{
             .stream = stream,
             .stream_writer = stream.writer(&.{}),
             .command = command,
             .interface = .{
-                .buffer = &.{},
+                .buffer = buffer, // by default is empty, but can be expanded using NewSSEBuffered()
                 .vtable = &.{
                     .drain = &drain,
                 },
             },
         };
-        // m.interface.buffer = m.io_buffer[0..];
-        // m.stream_writer = stream.writer(&m.io_buffer);
         switch (command) {
             .patchElements => {
                 m.patch_element_options = opt;
@@ -203,13 +225,10 @@ pub const Message = struct {
 
     pub fn end(self: *Message) !void {
         var me = &self.interface;
-        // std.debug.print("Flushing message, with buffer '{s}', end = {d}\n", .{ me.buffer[0..me.end], me.end });
         try me.flush();
-        // try me.flush();
         if (self.started) {
             self.started = false;
             self.line_in_progress = false;
-            // var sw = self.stream.writer(&.{});
             var w = &self.stream_writer.interface;
 
             switch (self.command) {
@@ -290,7 +309,7 @@ pub const Message = struct {
         var self: *Message = @fieldParentPtr("interface", w);
         _ = splat;
 
-        // std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
+        std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
 
         // pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {

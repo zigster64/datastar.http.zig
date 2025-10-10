@@ -1,29 +1,73 @@
 # Datastar lib for http.zig
 
-This is an alternative to the official Zig Datastar SDK https://github.com/starfederation/datastar/tree/main/sdk/zig 
+A Zig library that conforms to the DataStar SDK specification.
 
-The main difference is that this API uses stream processing, instead of building up a buffer. As a result, you can 
-connect this to any code that simply `print()` or `writeAll()` to the stream, and the lib will inject the necessary
-protocol commands.
+https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
+
+This SDK uses streams all the way down, so there is no implicit extra allocations.
+
+Current version is based on Zig 0.15.1, and uses the latest master of http.zig
+
+So this will work with custom apps using http.zig / jetzig / tokamak, etc
+
+Future updates will include support for Zig stdlib http server, as well as 
+other popular HTTP server libs, such as zzz and tardy.
+
+# Validation Test
+
+When you run `zig build`, it will compile several apps into `./zig-out/bin` including a binary called `validation-test`
+
+Run `./zig-out/bin/validation-test`, which will start a server on port 7331
+
+Then follow the procedure documented at
+
+https://github.com/starfederation/datastar/blob/main/sdk/tests/README.md
+
+To run the official DataStar validation suite against this test harness
+
 
 # Example Apps
 
-When you `zig build` it will compile several apps into `./zig-out/bin/` to demonstrate different aspects 
+When you run `zig build` it will compile several apps into `./zig-out/bin/` to demonstrate using different parts 
 of the api
 
 Using http.zig :
 
 - example_1  shows using the DataStar API using basic SDK handlers
-- example_2  shows an example multi-user auction site for cats with realtime updates
-- example_3  shows an example multi-user pigeon racing betting site with realtime updates
-- example_4  shows an example multi-game, multi-player TicTacToe site, using the backstage actor framework
-- example_5  shows an example multi-player Gardening Simulator
+- example_2  shows an example multi-user auction site for cats with realtime updates using pub/sub
+- example_22 Same cat auction as above, but with per-user preferences, all handled on the backend only
+
+<!-- - example_3  shows an example multi-user pigeon racing betting site with realtime updates -->
+<!-- - example_4  shows an example multi-game, multi-player TicTacToe site, using the backstage actor framework -->
+
+- example_5  shows an example multi-player Gardening Simulator using pub/sub
 
 Using zig stdlib http server :
 
-- example_10 as per example_1, but using zig stdlib instead of http.zig
+<!-- - example_10 as per example_1, but using zig stdlib instead of http.zig -->
 
 
+# Installation and Usage
+
+To build an application using this SDK
+
+1) Add datastar.http.zig as a dependency in your `build.zig.zon`:
+
+```bash
+zig fetch --save="datastar" "git+https://github.com/zigstser64/datastar.http.zig#master"
+```
+
+2) In your `build.zig`, add the `datastar` module as a dependency you your program:
+
+```zig
+const datastar = b.dependency("datastar", .{
+    .target = target,
+    .optimize = optimize,
+});
+
+// the executable from your call to b.addExecutable(...)
+exe.root_module.addImport("datastar", httpz.module("datastar"));
+```
 
 
 # Functions
@@ -31,7 +75,6 @@ Using zig stdlib http server :
 ## The SSE Object
 
 Calling NewSSE, passing a request and response, will return an object of type SSE.
-
 
 ```zig
     pub fn NewSSE(req, res) !SSE 
@@ -45,9 +88,62 @@ When you are finised with the SSE object, you should either :
 - Call `sse.close()` if you are done and want to close the connection as part of your handler.
 
 - Otherwise, the SSE connection is left open after you exit your handler function. In this case, you can 
-  access the `sse.stream: std.net.Stream` value and store it for subsequent writes to that open connection. 
+  access the `sse.stream: std.net.Stream` value and store it somewhere for subsequent writes to that open connection. 
 
-- This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, but you can use the value `sse.stream` to roll your own as well. 
+- This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
+
+
+## SSE IO, buffering and async socket writes
+
+Since Zig 0.15, IO and buffering are now a big deal, and offer some extreme options for fine tuning and optimizing your systems.  This is a good thing, and lots of fun to experiment with.
+
+The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signal and Script updates into the DataStar protocol, and then write them to the socket connection.
+
+By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to DataStar protocol.
+
+With http.zig, this socket writer is already buffered, and uses async IO to drain data to the actual socket connection in the background after your handler exits. This is all taken care of for you.
+
+For most applications, these defaults offer an excellent balance between performance and memory consumption.
+
+For advanced use cases, you can opt in for applying buffering to the SSE operations as well, by setting a default buffer size. 
+
+This will reduce the number of writes between the SSE processor and the underlying to the socket writer, at the expense of one extra allocation per request.
+
+To configure this, use 
+
+```zig
+    datastar.configure(.{ .buffer_size = 255 });
+```
+
+The performance differences between using a buffer or not are quite marginal (we are talking microseconds if at all), but its there if you think you need it.
+
+If you choose to use this, try and set the size of the buffer around the size of your most common smaller outputs, which could be 200-300 bytes depending on your application, or it could be a lot more.
+
+For example - if you set the buffer size to 200, then write 500 bytes to it, you will end up with 3 writes to the underlying stream - 1 for each time the buffer is full, then 1 more to flush the remainder.
+
+The SDK automatically takes care of flushing these intermediate buffers for you.
+
+Benchmark, experiment, and make your own decision about whether buffering improves your app or not, and use what works best for you.
+
+## Using custom buffering for a specific SSE object
+
+In some rare cases, you may want to apply a custom buffer to the SSE stream outside of the default configuration.
+
+Use 
+
+```zig
+    pub fn NewSSEBuffered(req, res, buffer) !SSE 
+```
+
+For example - see `fn code()` in `examples/01_basic.zig`, where it provides its own buffer to the SSE object, where the size is calculated in advance based on the size 
+of the payload.
+
+This is because the `code()` fn uses a tight loop that writes 1 byte at a time to the output. 
+This custom sized buffer allows the whole output to be written into memory before being passed on to the socket writer.
+
+Consider using this if you have a rare case that makes sense.
+
+# Using the DataStar SDK
 
 ## Patching Elements
 
@@ -66,11 +162,16 @@ These are all member functions of the SSE type that NewSSE(req, res) returns.
 
 Use `sse.patchElements` to directly patch the DOM with the given "elements" string.
 
-Use `sse.patchElementsFmt` to directly patch the DOM with a formatted print (where elements,args is the format string, args).
+Use `sse.patchElementsFmt` to directly patch the DOM with a formatted print (where elements,args is the format string + args).
 
-Use `sse.patchElementsWriter` to return a writer object that you can programmatically write to using complex logic.
+Use `sse.patchElementsWriter` to return a std.Io.Writer object that you can programmatically write to using complex logic.
 
-If using the Writer, then be sure to call `sse.flush()` when you are finished writing to it.
+If using the Writer, then be sure to call `sse.flush()` when you are finished writing to it and wish to keep the socket open, and writing to the same patchElements stream later.
+
+Calling `sse.close()` will automatically flush the writer output.
+
+Starting any new patchElements / patchSignals / executeScript on the SSE object will automatically flush the last writer as well.
+
 
 PatchElementsOptions is as follows :
 
@@ -104,64 +205,34 @@ Most of the time, you will want to simply pass an empty tuple `.{}` as the optio
 ## Executing Scripts
 
 
-# DEV STEALTH MODE
-
-This repo is currently in semi-stealth DEV mode
-
-That means sweeping breaking changes, as we are targetting DataStar 1.0 which is only in RC release at the moment
-
-And ... probably a reworked http.zig as writergate changes may be implemented soon
-
-And ... Zig 15 which doesnt come out till August 2025, and has many breaking changes
-
-So ... lots of breaking changes, and yolo merges straight onto the master branch
-
-
-After things settle, we will do the whole documentation - CI - tests - FeatureBranches engineering goodness
-
-Until then - wild west development
 
 # Contrib Policy
 
 All contribs welcome.
 
-Please raise an issue first before adding a PR, so there is room for discussion
-before any code hits
+Please raise a github issue first before adding a PR, and reference the issue in the PR title. 
 
-Until we get out of stealth mode and get into a proper engineering cycle, PR reviews will be light and easy
+This allows room for open discussion, as well as tracking of issues opened and closed.
 
-Once we hit release ... expect PR reviews to be harsh and well reasoned
-
-If you want to modify what someone else has already worked on - by all means put in a PR to change it, but also ping them offline
-or put them on the review list to comment on the change
-
-Realistically, once code is 'merged' then we ALL own it, but try and keep others in the the loop anyway
-
-This is partially for common courtesy, but also for the Chesterton's Fence principle `https://fs.blog/chestertons-fence/`
-
-Longer term - I would like this to hit 1.0 at the same time as Zig 15 and writergate changes settle down, and
-then ONLY add new features to keep it in track with D* updates (or Zig / http.zig updates)
-
-# Maintenance Policy
-
-This is intended to be a professionally supported API for the DataStar community after we hit 1.0.  Im committed to that at least, and 
-I believe we have enough good ppl on the team already to provide good support coverage long term
-
-Its not a particulary difficult bit of code to maintain
 
 # Advocacy Policy
 
 Happy to advocate for DataStar and Zig and this API very strongly
 
-But ... we dont say anything until we have reproducable benchmarks that people can apply themselves and come
+DataStar has so many good things going for it, and Zig is a really good fit for a high performance / low resource DataStar server
+
+But ... we dont say anything online until we have reproducable benchmarks that people can check for themselves and come
 to their own conclusions
 
-If we do it right, we shouldnt need to sell anything - it will sell itself
+Always advocate using objective and easy to demonstrate evidence first
+
 
 # LLM Policy
 
-Avoid LLM like the plague please. By all means use it for rubber ducking, but dont trust any code it produces
+Avoid LLM like the plague please.
 
-Its just not there yet (even if it looks convincing)
+By all means use it for rubber ducking, but dont trust any code it produces, especially with Zig latest, let alone DataStar latest.
+
+Its just not there yet (even if it looks convincing sometimes)
 
 

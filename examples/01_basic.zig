@@ -49,6 +49,8 @@ pub fn main() !void {
     });
     defer logz.deinit();
 
+    datastar.configure(.{ .buffer_size = 255 });
+
     var router = try server.router(.{});
 
     router.get("/", index, .{});
@@ -349,8 +351,14 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
 
     const data = snippets[snip_id - 1];
 
-    // these are short lived updates so we close the request as soon as its done
-    var sse = try datastar.NewSSE(req, res);
+    // create a buffer double the size of the snippet, to allow for brackets and extra HTML things
+    // so it all fits nicely in a single write operation to the SSE stream
+    const buffer: []u8 = try res.arena.alloc(u8, data.len * 2);
+    var sse = try datastar.NewSSEBuffered(
+        req,
+        res,
+        buffer,
+    );
     defer sse.close();
 
     const selector = try std.fmt.allocPrint(res.arena, "#code-{s}", .{snip});
