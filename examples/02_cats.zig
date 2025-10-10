@@ -77,12 +77,11 @@ pub const App = struct {
             logz.info().string("event", "publishCatList").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
-        // Update the HTML in the correct order
-        var msg = datastar.patchElements(stream);
-        defer msg.end();
+        var buffer: [1024]u8 = undefined;
 
-        // UGLY - doing very manual updates on the signals array below ... ok for demo with only 6 cats, but dont do this in real life please
-        var w = &msg.interface;
+        var sse = datastar.NewSSEFromStream(stream, &buffer);
+
+        var w = sse.patchElementsWriter(.{});
         try w.print(
             \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
         , .{
@@ -100,6 +99,8 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
+
+        try sse.flush();
     }
 };
 

@@ -170,6 +170,13 @@ pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
     };
 }
 
+pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE {
+    return SSE{
+        .stream = stream,
+        .buffer = buffer,
+    };
+}
+
 pub const Message = struct {
     stream: std.net.Stream,
     stream_writer: std.net.Stream.Writer,

@@ -224,6 +224,57 @@ Most of the time, you will want to simply pass an empty tuple `.{}` as the optio
 
 ## Executing Scripts
 
+# Publish and Subscribe
+
+## Attaching to an existing open SSE connection
+
+In your callback function where you want to publish a result to an existing open SSE connection, you will need to get an SSE object for that.
+
+You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
+
+Use this function, which takes a known std.net.Stream, and a buffer to use for writes. (You can set the buffer to &.{} for an unbuffered writer).
+
+
+```zig
+    pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+```
+
+If using this method, you MUST use `sse.flush()` when you are finished.
+
+Simplifed Example, from `examples/02_cats.zig` in the `publishCatList` function :
+
+```zig
+
+pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
+
+    // get an SSE object for the given stream
+    var buffer: [1024]u8 = undefined;
+    var sse = datastar.NewSSEFromStream(stream, &buffer);
+
+    // Set the sse to PatchElements, and return us a writer
+    var w = sse.patchElementsWriter(.{});
+
+    // setup a grid to display the cats in
+    try w.writeAll(
+        \\<div id="cat-list" class="grid grid-cols-3>
+    );
+
+    // each cat object can render itself to the given writer
+    for (app.cats.items) |cat| {
+        try cat.render(w);
+    }
+
+    // finish the original grid
+    try w.writeAll(
+        \\</div>
+    );
+
+    try sse.flush(); // dont forget to flush !
+```
+
+
+
+
 
 
 # Contrib Policy
