@@ -38,7 +38,7 @@ pub fn build(b: *std.Build) void {
         .{ .file = "examples/01_basic.zig", .name = "example_1" },
         .{ .file = "examples/02_petshop.zig", .name = "example_2" },
         .{ .file = "examples/022_petshop.zig", .name = "example_22" },
-        // .{ .file = "examples/05_garden.zig", .name = "example_5" },
+        .{ .file = "examples/05_garden.zig", .name = "example_5" },
     };
 
     {

@@ -284,11 +284,10 @@ pub const App = struct {
             logz.info().string("event", "publishPlantList").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
-        // Update the HTML in the correct order
-        var msg = datastar.patchElements(stream);
-        defer msg.end();
+        var buffer: [1024]u8 = undefined;
+        var sse = datastar.NewSSEFromStream(stream, &buffer);
 
-        var w = &msg.interface;
+        var w = sse.patchElementsWriter(.{});
         try w.print(
             \\<div id="plant-list" class="grid grid-cols-2 grid-rows-2 h-fit">
         , .{});
@@ -309,7 +308,9 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
+        try sse.flush();
     }
+
     pub fn publishCropCounts(app: *App, stream: Stream, _: ?[]const u8) !void {
         const t1 = std.time.microTimestamp();
         defer {
@@ -317,16 +318,22 @@ pub const App = struct {
             logz.info().string("event", "publishCropCounts").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
-        var msg = datastar.patchSignals(stream);
-        defer msg.end();
+        const Counts = struct {
+            carrots: usize,
+            radishes: usize,
+            gourds: usize,
+            onions: usize,
+        };
+        var sse = datastar.NewSSEFromStream(stream, &.{});
 
-        var w = &msg.interface;
-        try w.print("{{ carrots: {d}, radishes: {d}, gourds: {d}, onions: {d} }}", .{
-            app.crop_counts[0],
-            app.crop_counts[1],
-            app.crop_counts[2],
-            app.crop_counts[3],
-        });
+        try sse.patchSignals(Counts{
+            .carrots = app.crop_counts[0],
+            .radishes = app.crop_counts[1],
+            .gourds = app.crop_counts[2],
+            .onions = app.crop_counts[3],
+        }, .{}, .{});
+
+        try sse.flush();
     }
     pub fn updatePlants(app: *App) !void {
         var has_changes: bool = false;
