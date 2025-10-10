@@ -260,6 +260,9 @@ To configure buffering, use this :
 
 If your handlers are typically doing a large number of small writes inside a patchElements operation, then its definitely worth thinking about using a buffer for this.
 
+If you are using formatted printing a lot (either through `w.print(...) or sse.patchElementsFmt(...)`), then that will generate a larger number of small writes as well, as the print 
+formatter likes to output fragments of your string, and each argument all as separate write operations.
+
 The performance differences between using a buffer or not can be quite marginal (we are talking microseconds if at all), but its there if you think you need it. 
 
 If you choose to use this, try and set the size of the buffer around the size of your most common smaller outputs, which could be 200-300 bytes depending on your application, or it could be a lot more.
