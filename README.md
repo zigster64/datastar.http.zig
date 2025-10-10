@@ -15,6 +15,8 @@ other popular HTTP server libs, such as zzz and tardy.
 
 # Validation Test
 
+** TODO ** - validation-test isnt there yet. Will update once its complete **
+
 When you run `zig build`, it will compile several apps into `./zig-out/bin` including a binary called `validation-test`
 
 Run `./zig-out/bin/validation-test`, which will start a server on port 7331
@@ -83,14 +85,14 @@ Calling NewSSE, passing a request and response, will return an object of type SS
 This will configure the connnection for SSE transfers, and provides an object with DataStar methods for
 patching elements, patching signals, executing scripts, etc.
 
-When you are finised with the SSE object, you should either :
+When you are finished with the SSE object, you should either :
 
 - Call `sse.close()` if you are done and want to close the connection as part of your handler.
 
 - Otherwise, the SSE connection is left open after you exit your handler function. In this case, you can 
-  access the `sse.stream: std.net.Stream` value and store it somewhere for subsequent writes to that open connection. 
+  access the `sse.stream: std.net.Stream` value and store it somewhere for additional updates over that open connection. 
 
-- This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
+- This Zig SDK also includes a simple Pub/Sub subsystem that takes care o  tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
 
 
 # Using the DataStar SDK
@@ -172,17 +174,25 @@ Most of the time, you will want to simply pass an empty tuple `.{}` as the optio
 
 ## Patching Signals
 
+TODO - code works fine, needs README writeup
+
 ## Executing Scripts
+
+TODO - code works fine, needs README writeup
 
 # Publish and Subscribe
 
+TODO - code works fine, needs README writeup
+
 ## Attaching to an existing open SSE connection
 
-In your callback function where you want to publish a result to an existing open SSE connection, you will need to get an SSE object for that.
+In your callback function where you want to publish a result to an existing open SSE connection, you will need to get an SSE object from that stream first.
 
 You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
 
-Use this function, which takes a known std.net.Stream, and a buffer to use for writes. (You can set the buffer to &.{} for an unbuffered writer).
+Use this function, which takes an existing open std.net.Stream, and an optional buffer to use for writes.
+
+(ie - you can set it to the empty buffer &.{} for an unbuffered writer).
 
 
 ```zig
@@ -232,21 +242,23 @@ The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signa
 
 By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to DataStar protocol.
 
-With http.zig, this socket writer is already buffered, and uses async IO to drain data to the user's browser in the background after your handler exits. This is all taken care of for you.
+With http.zig, this underlying socket writer is already buffered, and uses async IO to drain data to the user's browser in the background after your handler exits. This is all taken care of for you.
 
 For most applications, these defaults offer an excellent balance between performance and memory consumption.
 
 For advanced use cases, you can opt in for applying buffering to the SSE operations as well, by setting a default buffer size. 
 
-This will reduce the number of writes between the SSE processor and the underlying writer to the browser, at the expense of one extra allocation per request.
+This will reduce the number of writes between the SSE processor and the underlying http.zig writer to the browser, at the expense of one extra allocation per request.
 
-To configure this, use 
+To configure buffering, use this : 
 
 ```zig
     datastar.configure(.{ .buffer_size = 255 });
 ```
 
-The performance differences between using a buffer or not are quite marginal (we are talking microseconds if at all), but its there if you think you need it.
+If your handlers are typically doing a large number of small writes inside a patchElements operation, then its definitely worth thinking about using a buffer for this.
+
+The performance differences between using a buffer or not can be quite marginal (we are talking microseconds if at all), but its there if you think you need it. 
 
 If you choose to use this, try and set the size of the buffer around the size of your most common smaller outputs, which could be 200-300 bytes depending on your application, or it could be a lot more.
 
