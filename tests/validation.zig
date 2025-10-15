@@ -4,7 +4,7 @@ const logz = @import("logz");
 const datastar = @import("datastar");
 const Allocator = std.mem.Allocator;
 
-const PORT = 7331;
+const PORT = 7332;
 
 // Run Datastar validation test suite backend in Zig
 pub fn main() !void {
@@ -14,6 +14,14 @@ pub fn main() !void {
     var server = try httpz.Server(void).init(allocator, .{
         .port = PORT,
         .address = "0.0.0.0",
+        .thread_pool = .{
+            .count = 1,
+            .backlog = 8,
+            .buffer_size = 2048,
+        },
+        .request = .{
+            .buffer_size = 2048,
+        },
     }, {});
     defer {
         // clean shutdown
