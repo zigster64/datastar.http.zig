@@ -1,6 +1,6 @@
 # Datastar lib for http.zig
 
-A Zig library that conforms to the DataStar SDK specification.
+A Zig library that conforms to the Datastar SDK specification.
 
 https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
 
@@ -15,8 +15,6 @@ other popular HTTP server libs, such as zzz and tardy.
 
 # Validation Test
 
-** TODO ** - validation-test isnt there yet. Will update once its complete **
-
 When you run `zig build`, it will compile several apps into `./zig-out/bin` including a binary called `validation-test`
 
 Run `./zig-out/bin/validation-test`, which will start a server on port 7331
@@ -25,7 +23,9 @@ Then follow the procedure documented at
 
 https://github.com/starfederation/datastar/blob/main/sdk/tests/README.md
 
-To run the official DataStar validation suite against this test harness
+To run the official Datastar validation suite against this test harness
+
+The source code for the `validation-test` program is in the file `tests/validation.zig`
 
 
 # Example Apps
@@ -35,7 +35,7 @@ of the api
 
 Using http.zig :
 
-- example_1  shows using the DataStar API using basic SDK handlers
+- example_1  shows using the Datastar API using basic SDK handlers
 - example_2  shows an example multi-user auction site for cats with realtime updates using pub/sub
 - example_22 Same cat auction as above, but with per-user preferences, all handled on the backend only
 
@@ -82,7 +82,7 @@ Calling NewSSE, passing a request and response, will return an object of type SS
     pub fn NewSSE(req, res) !SSE 
 ```
 
-This will configure the connnection for SSE transfers, and provides an object with DataStar methods for
+This will configure the connnection for SSE transfers, and provides an object with Datastar methods for
 patching elements, patching signals, executing scripts, etc.
 
 When you are finished with the SSE object, you should either :
@@ -95,7 +95,7 @@ When you are finished with the SSE object, you should either :
 - This Zig SDK also includes a simple Pub/Sub subsystem that takes care o  tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
 
 
-# Using the DataStar SDK
+# Using the Datastar SDK
 
 ## Reading Signals from the request
 
@@ -168,7 +168,7 @@ pub const PatchMode = enum {
 };
 ```
 
-See the DataStar documentation for the usage of these options when using patchElements.
+See the Datastar documentation for the usage of these options when using patchElements.
 
 https://data-star.dev/reference/sse_events
 
@@ -240,9 +240,9 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
 
 Since Zig 0.15, IO and buffering are now a big deal, and offers some extreme options for fine tuning and optimizing your systems.  This is a good thing, and lots of fun to experiment with.
 
-The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signal and Script updates into the DataStar protocol, and then write them to the browser's connection.
+The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signal and Script updates into the Datastar protocol, and then write them to the browser's connection.
 
-By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to DataStar protocol.
+By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to Datastar protocol.
 
 With http.zig, this underlying socket writer is already buffered, and uses async IO to drain data to the user's browser in the background after your handler exits. This is all taken care of for you.
 
@@ -287,7 +287,7 @@ For example - see `fn code()` in `examples/01_basic.zig`, where it provides its 
 of the payload.
 
 This is because the `code()` fn uses a tight loop that writes 1 byte at a time to the output. 
-This custom sized buffer allows the whole output to be written into memory before being passed on to the socket writer.
+This custom sized buffer allows the whole output  bnto be written into memory before being passed on to the socket writer.
 
 Consider using this if you have a rare case that makes sense.
 
@@ -305,9 +305,9 @@ This allows room for open discussion, as well as tracking of issues opened and c
 
 # Advocacy Policy
 
-Happy to advocate for DataStar and Zig and this API very strongly
+Happy to advocate for Datastar and Zig and this API very strongly
 
-DataStar has so many good things going for it, and Zig is a really good fit for a high performance / low resource DataStar server
+Datastar has so many good things going for it, and Zig is a really good fit for a high performance / low resource Datastar server
 
 But ... we dont say anything online until we have reproducable benchmarks that people can check for themselves and come
 to their own conclusions
@@ -319,7 +319,7 @@ Always advocate using objective and easy to demonstrate evidence first
 
 Avoid LLM like the plague please.
 
-By all means use it for rubber ducking, but dont trust any code it produces, especially with Zig latest, let alone DataStar latest.
+By all means use it for rubber ducking, but dont trust any code it produces, especially with Zig latest, let alone Datastar latest.
 
 Its just not there yet (even if it looks convincing sometimes)
 

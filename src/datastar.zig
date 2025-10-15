@@ -269,6 +269,9 @@ pub const Message = struct {
                 if (self.patch_element_options.selector) |s| {
                     try w.print("data: selector {s}\n", .{s});
                 }
+                if (self.patch_element_options.view_transition) {
+                    try w.print("data: useViewTransition true\n", .{});
+                }
                 const mt = self.patch_element_options.mode;
                 switch (mt) {
                     .outer => {},
