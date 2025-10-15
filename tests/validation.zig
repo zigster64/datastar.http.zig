@@ -16,11 +16,11 @@ pub fn main() !void {
         .address = "0.0.0.0",
         .thread_pool = .{
             .count = 1,
-            .backlog = 8,
-            .buffer_size = 2048,
+            .backlog = 1,
+            .buffer_size = 512,
         },
         .request = .{
-            .buffer_size = 2048,
+            .buffer_size = 512,
         },
     }, {});
     defer {
@@ -32,10 +32,10 @@ pub fn main() !void {
     // initialize a logging pool
     try logz.setup(allocator, .{
         .level = .Info,
-        .pool_size = 100,
-        .buffer_size = 4096,
-        .large_buffer_count = 8,
-        .large_buffer_size = 16384,
+        .pool_size = 1,
+        .buffer_size = 256,
+        .large_buffer_count = 1,
+        .large_buffer_size = 512,
         .output = .stdout,
         .encoding = .logfmt,
     });
@@ -60,6 +60,7 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
     ;
 }
 
+/// Data mapping for how test cases are passed in
 const TestInput = struct {
     events: []TestEvent,
 };
