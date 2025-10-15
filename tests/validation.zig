@@ -38,8 +38,8 @@ pub fn main() !void {
     var router = try server.router(.{});
 
     router.get("/", index, .{});
-    router.get("/test", getTest, .{});
-    router.post("/test", postTest, .{});
+    router.get("/test", runTest, .{}); // get will use the query params
+    router.post("/test", runTest, .{}); // post will use the request body
 
     std.debug.print("Zig SDK Validation Test listening on http://localhost:{d}/\n", .{PORT});
     try server.listen();
@@ -51,25 +51,6 @@ fn index(_: *httpz.Request, res: *httpz.Response) !void {
         \\to run the official Datastar SDK test validator against this test suite
     ;
 }
-
-/// Test input is defined as :
-// ```json
-// {
-//   "events": [
-//     {
-//       "type": "executeScript",
-//       "script": "console.log('hello');",
-//       "eventId": "event1",
-//       "retryDuration": 2000,
-//       "attributes": {
-//         "type": "text/javascript",
-//         "blocking": "false"
-//       },
-//       "autoRemove": false
-//     }
-//   ]
-// }
-//
 
 const TestInput = struct {
     events: []TestEvent,
@@ -102,21 +83,40 @@ const TestEventAttribute = struct {
     blocking: ?[]const u8 = null,
 };
 
-fn getTest(req: *httpz.Request, res: *httpz.Response) !void {
+fn runTest(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     defer {
         const t2 = std.time.microTimestamp();
         logz.info()
-            .string("event", "getTest")
+            .string("event", "runTest")
+            .string("method", req.method_string)
             .int("elapsed (μs)", t2 - t1)
             .log();
         std.debug.print("===========================================\n", .{});
     }
 
     // Debug the input packet
-    const query = try req.query();
-    const params = query.get("datastar") orelse return error.MissingDatastarKey;
-    std.debug.print("{s}\n", .{params});
+    switch (req.method) {
+        .GET => {
+            const query = try req.query();
+            const params = query.get("datastar") orelse return error.MissingDatastarKey;
+            std.debug.print("GET params:\n{s}\n", .{params});
+        },
+        .POST => {
+            if (req.body_buffer) |payload| {
+                std.debug.print("POST body:\n{s}\n", .{payload.data});
+            } else {
+                std.debug.print("Invalid POST with no body data\n", .{});
+                res.status = 400;
+                return;
+            }
+        },
+        else => {
+            std.debug.print("Invalid test HTTP method {s}\n", .{req.method_string});
+            res.status = 400;
+            return;
+        },
+    }
 
     // read the TestInput params
     const testInput = try datastar.readSignals(TestInput, req);
@@ -226,18 +226,4 @@ fn getTest(req: *httpz.Request, res: *httpz.Response) !void {
             }
         }
     }
-
-    res.body = "";
-}
-
-fn postTest(_: *httpz.Request, res: *httpz.Response) !void {
-    const t1 = std.time.microTimestamp();
-    defer {
-        const t2 = std.time.microTimestamp();
-        logz.info()
-            .string("event", "getTest")
-            .int("elapsed (μs)", t2 - t1)
-            .log();
-    }
-    res.body = "";
 }
