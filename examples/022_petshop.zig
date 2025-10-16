@@ -153,7 +153,7 @@ fn postSort(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         var cookies = req.cookies();
         if (cookies.get("session")) |session| {
             if (app.sessions.getPtr(session)) |app_session| {
-                std.debug.print("got this session {any}\n", .{app_session});
+                std.debug.print("got this session {s}:{any}\n", .{ session, app_session });
                 app_session.sort = new_sort;
                 std.debug.print("upgraded to {any}\n", .{app_session});
                 try app.publishSession("cats", session);

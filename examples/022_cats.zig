@@ -160,7 +160,7 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session.?).int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session orelse "null").int("elapsed (μs)", t2 - t1).log();
         }
 
         var buffer: [1024]u8 = undefined;

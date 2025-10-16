@@ -6,12 +6,14 @@ https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
 
 This SDK uses streams all the way down, so there is no implicit extra allocations.
 
-Current version is based on Zig 0.15.1, and uses the latest master of http.zig
+Current version is based on Zig 0.15.2, and uses the latest master of http.zig
 
-So this will work with custom apps using http.zig / jetzig / tokamak, etc
+So this will work with custom apps using http.zig, as well as jetzig / tokamak, etc
 
 Future updates will include support for Zig stdlib http server, as well as 
 other popular HTTP server libs, such as zzz and tardy.
+
+Future updates will provide example apps that demonstrate using jetzig and tokamak as well.
 
 # Validation Test
 
@@ -26,6 +28,8 @@ https://github.com/starfederation/datastar/blob/main/sdk/tests/README.md
 To run the official Datastar validation suite against this test harness
 
 The source code for the `validation-test` program is in the file `tests/validation.zig`
+
+Current version passes all tests.
 
 
 # Example Apps
