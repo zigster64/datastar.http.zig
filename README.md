@@ -292,6 +292,8 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
 
 # Publish and Subscribe
 
+** EXPERIMENTAL - WILL CHANGE **
+
 
 ## Attaching to an existing open SSE connection
 
