@@ -4,7 +4,7 @@ const logz = @import("logz");
 const datastar = @import("datastar");
 const Allocator = std.mem.Allocator;
 
-const PORT = 7332;
+const PORT = 7331;
 
 // Run Datastar validation test suite backend in Zig
 pub fn main() !void {

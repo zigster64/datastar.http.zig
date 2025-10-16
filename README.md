@@ -105,6 +105,16 @@ When you are finished with the SSE object, you should either :
 
 Will take a Type (struct) and a HTTP request, and returns a filled in struct of the requested type.
 
+If the request is a `HTTP GET` request, it will extract the signals from the query params. You will see that 
+your GET requests have a `?datastar=...` query param in most cases. This is how Datastar passes signals to
+your backend via a GET request.
+
+If the request is a `HTTP POST` or other request that uses a payload body, this function will use the 
+payload body to extract the signals. This is how Datastar passes signals to your backend when using POST, etc.
+
+Either way, provide `readSignals` with a type that you want to read the signals into, and it will use the
+request method to work out which way to fill in the struct.
+
 Example :
 ```zig
     const FooBar = struct {
@@ -145,7 +155,7 @@ Calling `sse.close()` will automatically flush the writer output.
 Starting any new patchElements / patchSignals / executeScript on the SSE object will automatically flush the last writer as well.
 
 
-PatchElementsOptions is as follows :
+PatchElementsOptions is defined as :
 
 ```zig
 pub const PatchElementsOptions = struct {
@@ -174,17 +184,110 @@ https://data-star.dev/reference/sse_events
 
 Most of the time, you will want to simply pass an empty tuple `.{}` as the options parameter. 
 
+Example handler (from `examples/01_basic.zig`)
+
+```zig
+fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
+    var sse = try datastar.NewSSE(req, res);
+    defer sse.close();
+
+    try sse.patchElementsFmt(
+        \\<p id="mf-patch">This is update number {d}</p>
+    ,
+        .{getCountAndIncrement()},
+        .{},
+    );
+}
+```
+
 ## Patching Signals
 
-TODO - code works fine, needs README writeup
+The SDK provides 2 functions to patch signals over SSE.
+
+These are all member functions of the SSE type that NewSSE(req, res) returns.
+
+```zig
+    pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void
+
+    pub fn patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer
+```
+
+PatchSignalsOptions is defined as :
+```zig
+pub const PatchSignalsOptions = struct {
+    only_if_missing: bool = false,
+    event_id: ?[]const u8 = null,
+    retry_duration: ?i64 = null,
+};
+```
+
+Use `patchSignals` to directly patch the signals, passing in a value that will be JSON stringified into signals.
+
+Use `patchSignalsWriter` to return a std.Io.Writer object that you can programmatically write raw JSON to.
+
+Example handler (from `examples/01_basic.zig`)
+```zig
+fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
+    var sse = try datastar.NewSSE(req, res);
+    defer sse.close();
+
+    const foo = prng.random().intRangeAtMost(u8, 0, 255);
+    const bar = prng.random().intRangeAtMost(u8, 0, 255);
+
+    try sse.patchSignals(.{
+        .foo = foo,
+        .bar = bar,
+    }, .{}, .{});
+}
+```
 
 ## Executing Scripts
 
-TODO - code works fine, needs README writeup
+The SDK provides 3 functions to initiate executing scripts over SSE.
+
+```zig
+
+    pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void
+
+    pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void 
+
+    pub fn executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
+```
+
+ExecuteScriptOptions is defined as :
+```zig
+pub const ExecuteScriptOptions = struct {
+    auto_remove: bool = true, // by default remove the script after use, otherwise explicity set this to false if you want to keep the script loaded
+    attributes: ?ScriptAttributes = null,
+    event_id: ?[]const u8 = null,
+    retry_duration: ?i64 = null,
+};
+```
+
+Use `executeScript` to send the given script to the frontend for execution.
+
+Use `executeScriptFmt` to use a formatted print to create the script, and send it to the frontend for execution. 
+Where (script, args) is the same as print(format, args).
+
+Use `executeScriptWriter` to return a std.Io.Writer object that you can programmatically write the script to, for
+more complex cases.
+
+Example handler (from `examples/01_basic.zig`)
+```zig
+fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
+    const value = req.param("value"); // can be null
+
+    var sse = try datastar.NewSSE(req, res);
+    defer sse.close();
+
+    try sse.executeScriptFmt("console.log('You asked me to print {s}')"", .{
+            value orelse "nothing at all",
+    });
+}
+```
 
 # Publish and Subscribe
 
-TODO - code works fine, needs README writeup
 
 ## Attaching to an existing open SSE connection
 
@@ -291,9 +394,6 @@ This custom sized buffer allows the whole output  bnto be written into memory be
 
 Consider using this if you have a rare case that makes sense.
 
-
-
-
 # Contrib Policy
 
 All contribs welcome.
@@ -301,18 +401,6 @@ All contribs welcome.
 Please raise a github issue first before adding a PR, and reference the issue in the PR title. 
 
 This allows room for open discussion, as well as tracking of issues opened and closed.
-
-
-# Advocacy Policy
-
-Happy to advocate for Datastar and Zig and this API very strongly
-
-Datastar has so many good things going for it, and Zig is a really good fit for a high performance / low resource Datastar server
-
-But ... we dont say anything online until we have reproducable benchmarks that people can check for themselves and come
-to their own conclusions
-
-Always advocate using objective and easy to demonstrate evidence first
 
 
 # LLM Policy
