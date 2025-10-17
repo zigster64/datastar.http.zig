@@ -88,6 +88,47 @@ exe.root_module.addImport("datastar", httpz.module("datastar"));
 
 # Functions
 
+## Cheatsheet of all SDK functions
+
+```zig
+const datastar = @import("datastar");
+
+// read signals either from GET or POST
+datastar.readSignals(comptime T: type, req: anytype) !T
+
+// set the connection to SSE, and return an SSE object
+var sse = datastar NewSSE(req, res) !SSE
+
+// patch elements function variants
+sse.patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void
+sse.patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void
+sse.patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer 
+
+// patch signals function variants
+sse.patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void
+sse.patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer
+
+// execute scripts function variants
+sse.executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void
+sse.executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void 
+sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
+
+// variants of getting an SSE object
+
+// create SSE with custom buffer
+var sse = NewSSEBuffered(req, res, buffer) !SSE 
+// create an SSE object from an existing open connection
+var sse = NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+// fine tune internal IO buffering / other configuration
+datastar.configure(.{ .buffer_size = 255 });
+
+// SDK extension - auto pub/sub management
+app.subscribe("topic", sse.stream, someCallbackFunction);
+app.subscribeSession("topic", sse.stream, someCallbackFunction, SessionID);
+app.publish("topic");
+app.publishSession("topic", SessionID); // only publish to subs with this sessionID
+```
+
 ## The SSE Object
 
 Calling NewSSE, passing a request and response, will return an object of type SSE.
@@ -533,6 +574,14 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
 
 Keep reading to see what happens now when the callback is invoked, and do the broadcast
 using `publishCatList`
+
+There is a variant of publish where you only want to publish to subscribers with a specific 
+Session. This is used in `examples/022_petshop.zig` for example, when setting user preferences 
+then it only publishes an update to it's own session, not the whole world.
+
+```zig
+  pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void 
+```
 
 ## Pub/Sub - 4) Writing the Callback function
 
