@@ -587,7 +587,7 @@ using `publishCatList`
 In your callback function where you want to publish a result to an existing open SSE connection,
 you will first need to get an SSE object from that open stream.
 
-All callback functions will provide the existing stream as a parameter.
+All callback functions will provide this existing open stream as a parameter.
 
 You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
 
