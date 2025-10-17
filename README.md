@@ -21,7 +21,7 @@ Future updates will provide example apps that demonstrate using jetzig and tokam
 
 Who is this repo for ?
 
-- People usingw, experimenting with, or contributing to Datastar. https://data-star.dev.
+- People using, experimenting with, or contributing to Datastar. https://data-star.dev.
 
 It is a state of the art Hypermedia-first library for building apps. 
 
