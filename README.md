@@ -757,8 +757,11 @@ that connections cannot have multiple subscriptions to the same topic.
 
 Personal Opinion - Avoid LLM like the plague please.
 
-By all means use it for rubber ducking, but dont trust any code it produces, especially with Zig latest, let alone Datastar latest.
+Dont know about you, but im at leasnt 2x more productive with every AI tool disabled in my IDE.
+My editor is just way faster that way, and I think so much clearer without the constant "suggestions".
+
+By all means use it for rubber ducking outside of coding, but dont trust any code it produces, especially with Zig latest, let alone Datastar latest.
 
 Its just not there yet (even if it looks convincing sometimes)
 
-Hopefully I can be happy to remove this section from the docs in a few years time :)
+Please keep this in mind if submitting PRs as well.
