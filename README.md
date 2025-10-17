@@ -570,16 +570,17 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
 }
 ```
 
-Keep reading to see what happens now when the callback is invoked, and do the broadcast
-using `publishCatList`
-
-There is a variant of publish where you only want to publish to subscribers with a specific 
+There is also a variant of publish where you only want to publish to subscribers with a specific 
 Session. This is used in `examples/022_petshop.zig` for example, when setting user preferences 
 then it only publishes an update to it's own session, not the whole world.
 
 ```zig
   pub fn publishSession(self: *Self, topic: []const u8, session: SessionType) !void 
 ```
+
+Keep reading to see what happens now when the callback is invoked, and do the broadcast
+using `publishCatList`
+
 
 ## Pub/Sub - 4) Writing the Callback function
 
