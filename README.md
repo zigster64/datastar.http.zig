@@ -1,8 +1,10 @@
-#s Datastar lib for http.zig
+# Datastar lib for http.zig
 
 A Zig library that conforms to the Datastar SDK specification.
 
 https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
+
+.. and passes the official test cases.
 
 This SDK uses streams all the way down, so there is no implicit extra allocations.
 
