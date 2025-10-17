@@ -10,10 +10,14 @@ This SDK uses streams all the way down, so there is no implicit extra allocation
 
 Current version is based on Zig 0.15.2, and uses the latest master of http.zig
 
-So this will work with custom apps using http.zig, as well as jetzig / tokamak, etc
+It uses the latest "writergate" changes, and makes good use of the high speed buffered 
+interfaces. The SDK is very fast, and very lightweight.
 
-Future updates will include support for Zig stdlib http server, as well as 
-other popular HTTP server libs, such as zzz and tardy.
+Whilst this is built for http.zig, it should work as well with jetzig / tokamak, etc
+as they use http.zig under the hood.
+
+Future updates to this repo will include support for Zig stdlib http server, as well as 
+other popular HTTP server libs, such as zzz and tardy, and zap.
 
 Future updates will provide example apps that demonstrate using jetzig and tokamak as well.
 
@@ -44,6 +48,8 @@ Why consider the Zig version then ? Who is that for ?
 
 - Existing Zig programmers who want to try Datastar
 - Datastar app builders who want to experiment with performance, and dabble in new backend languages
+
+Consider Zig if every microsecond counts, and you want stupidly small memory footprints that dont grow.
 
 We are talking orders of magnitude performance and resource usage gains for your existing Datastar app, depending
 on what you are currently using. 
