@@ -97,7 +97,7 @@ const datastar = @import("datastar");
 datastar.readSignals(comptime T: type, req: anytype) !T
 
 // set the connection to SSE, and return an SSE object
-var sse = datastar NewSSE(req, res) !SSE
+var sse = datastar.NewSSE(req, res) !SSE
 
 // patch elements function variants
 sse.patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void
