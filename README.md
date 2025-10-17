@@ -409,10 +409,8 @@ This is sometimes also referred to as the CQRS pattern.
 
 Using this builtin pub/sub system in the Zig SDK is optimized for both of the following use cases :
 
-```
 - Where you have a few thousand concurrent connections each subscribed to a handful of topics
 - Where you have a few thousand different topics, each with a handful of connections
-```
 
 Internally, we use a pair of indexes to ensure that both extremes of how topics and connections are arranged remain 
 performant.
