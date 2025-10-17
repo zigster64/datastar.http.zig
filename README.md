@@ -17,6 +17,38 @@ other popular HTTP server libs, such as zzz and tardy.
 
 Future updates will provide example apps that demonstrate using jetzig and tokamak as well.
 
+# Audience and Scope
+
+Who is this repo for ?
+
+- People usingw, experimenting with, or contributing to Datastar. https://data-star.dev.
+
+It is a state of the art Hypermedia-first library for building apps. 
+
+Its not "yet another frontend framework" - its a 10kb JS shim that allows you to write application code
+at the backend, and leverage modern browser standards to have a very fast, very light, reactive UI 
+with none of the junk. There are no build steps, no npm deps - just declarative HTML.
+
+If you know, you know.
+
+It uses a well defined SSE-first protocol that is backend agnostic - you can use the the same simple 
+SDK functions to write the same app in Go, Clojure, C#, PHP, Python, Bun, Ruby, Rust, Lisp, Racket, Java, etc. 
+
+This project adds Zig to that list of supported SDK languages.
+
+It uses the exact same spec as all the other SDK's, and reads extremely similarly to say - a Go program
+or a Python program using the same SDK.
+
+Why consider the Zig version then ? Who is that for ?
+
+- Existing Zig programmers who want to try Datastar
+- Datastar app builders who want to experiment with performance, and dabble in new backend languages
+
+We are talking orders of magnitude performance and resource usage gains for your existing Datastar app, depending
+on what you are currently using. 
+
+Try it out.
+
 # Validation Test
 
 When you run `zig build`, it will compile several apps into `./zig-out/bin` including a binary called `validation-test`
@@ -687,14 +719,14 @@ StreamTopicMap - which is a map[stream] -> [topics]
 
 This is used so that when given a stream, you can quickly see which topics it is subscribed to. This is important
 when a write to a stream fails, the system then needs to un-subscribe that stream / remove it from the Subscriptions
-list. Having the exact topic list means much faster looking through the Subscriptions list to cull them. 
+list. Having the exact topic list means its much faster finding which Subscriptions need to be culled.
 
 These are defined as 
 ```zig
-    // A collection of subscriptions for each topic
+    // A map keyed on topic, giving a list of Subscriptions connected
     const Subscriptions = std.StringHashMap(std.ArrayList(Subscription));
 
-    // A map of which topics each stream is subscribed to, for quick lookup by stream
+    // A map keyed on Stream, giving a list of topics subscribed to
     const StreamTopicMap = std.AutoHashMap(std.net.Stream, std.ArrayList([]const u8));
 ```
 
