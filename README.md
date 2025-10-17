@@ -129,6 +129,8 @@ app.publish("topic");
 app.publishSession("topic", SessionID); // only publish to subs with this sessionID
 ```
 
+# Using the Datastar SDK
+
 ## The SSE Object
 
 Calling NewSSE, passing a request and response, will return an object of type SSE.
@@ -150,7 +152,6 @@ When you are finished with the SSE object, you should either :
 - This Zig SDK also includes a simple Pub/Sub subsystem that takes care o  tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
 
 
-# Using the Datastar SDK
 
 ## Reading Signals from the request
 
