@@ -49,7 +49,9 @@ Why consider the Zig version then ? Who is that for ?
 - Existing Zig programmers who want to try Datastar
 - Datastar app builders who want to experiment with performance, and dabble in new backend languages
 
-Consider Zig if every microsecond counts, and you want stupidly small memory footprints that dont grow.
+Consider Zig if every microsecond counts, or you want stupidly small memory footprints that dont grow.
+
+Zig gives you some pretty good tuning options if you want to chase benchmarks and break records too.
 
 We are talking orders of magnitude performance and resource usage gains for your existing Datastar app, depending
 on what you are currently using. 
