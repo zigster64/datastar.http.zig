@@ -363,7 +363,7 @@ This will reduce the number of writes between the SSE processor and the underlyi
 To configure buffering, use this : 
 
 ```zig
-    datastar.configure(.{ .buffer_size = 255 });
+    datastar.configure(.{ .buffer_size = 255 }); // or whatever value you want
 ```
 
 If your handlers are typically doing a large number of small writes inside a patchElements operation, then its definitely worth thinking about using a buffer for this.
