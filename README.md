@@ -640,9 +640,9 @@ every subscriber.
 You still want to broadcast to everyone on the same topic, but you also want to tailor the published output on a
 user-by-user basis in this case.
 
-We can do that by using unique "Session Values", and attaching that to each subscription.
+We can do that by using a unique "Session Value", and attaching that to each subscription.
 
-So use this variant when subscribing :
+So use this variant when you want to associate a Session ID with a subscription :
 ```zig
     pub fn subscribeSession(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback, session: SessionType) !void 
 ```
