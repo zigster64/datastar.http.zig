@@ -428,10 +428,9 @@ If you want to stretch beyond that, then you start running into "Production Scal
 "Production Scale" pub/sub message bus, such as Nats, Redis Pub/Sub, Postgres Notify, Rabbit MQ, Kafka, etc.
 
 "Production Scale" means :
-```
+
 - Where you expect to run your application over multiple instances (even for failover sanity) - then you need an industrial message bus anyway
 - Where you expect to have way more than 40,0000 concurrent connections on a good day
-```
 
 Be aware of these limits if using the built in pub/sub
 
