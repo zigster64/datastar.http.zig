@@ -27,7 +27,8 @@ It is a state of the art Hypermedia-first library for building apps.
 
 Its not "yet another frontend framework" - its a 10kb JS shim that allows you to write application code
 at the backend, and leverage modern browser standards to have a very fast, very light, reactive UI 
-with none of the junk. There are no build steps, no npm deps - just declarative HTML.
+with none of the junk. There are no build steps, no npm deps - just declarative HTML and reactive signals,
+driven from the backend.
 
 If you know, you know.
 
