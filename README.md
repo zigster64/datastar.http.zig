@@ -1,4 +1,4 @@
-# Datastar lib for http.zig
+#s Datastar lib for http.zig
 
 A Zig library that conforms to the Datastar SDK specification.
 
@@ -30,6 +30,14 @@ To run the official Datastar validation suite against this test harness
 The source code for the `validation-test` program is in the file `tests/validation.zig`
 
 Current version passes all tests.
+
+# Contrib Policy
+
+All contribs welcome.
+
+Please raise a github issue first before adding a PR, and reference the issue in the PR title. 
+
+This allows room for open discussion, as well as tracking of issues opened and closed.
 
 
 # Example Apps
@@ -290,60 +298,7 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
 }
 ```
 
-# Publish and Subscribe
-
-** EXPERIMENTAL - WILL CHANGE **
-
-
-## Attaching to an existing open SSE connection
-
-In your callback function where you want to publish a result to an existing open SSE connection, you will need to get an SSE object from that stream first.
-
-You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
-
-Use this function, which takes an existing open std.net.Stream, and an optional buffer to use for writes.
-
-(ie - you can set it to the empty buffer &.{} for an unbuffered writer).
-
-
-```zig
-    pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
-```
-
-If using this method, you MUST use `sse.flush()` when you are finished.
-
-Simplifed Example, from `examples/02_cats.zig` in the `publishCatList` function :
-
-```zig
-
-pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
-
-    // get an SSE object for the given stream
-    var buffer: [1024]u8 = undefined;
-    var sse = datastar.NewSSEFromStream(stream, &buffer);
-
-    // Set the sse to PatchElements, and return us a writer
-    var w = sse.patchElementsWriter(.{});
-
-    // setup a grid to display the cats in
-    try w.writeAll(
-        \\<div id="cat-list" class="grid grid-cols-3>
-    );
-
-    // each cat object can render itself to the given writer
-    for (app.cats.items) |cat| {
-        try cat.render(w);
-    }
-
-    // finish the original grid
-    try w.writeAll(
-        \\</div>
-    );
-
-    try sse.flush(); // dont forget to flush !
-```
-
-# Advanced Topics
+# Advanced SSE Topics
 
 ## SSE IO, buffering and async socket writes
 
@@ -400,21 +355,317 @@ This custom sized buffer allows the whole output  bnto be written into memory be
 
 Consider using this if you have a rare case that makes sense.
 
-# Contrib Policy
+# Publish and Subscribe
 
-All contribs welcome.
+This Zig SDK includes an easy to use Pub/Sub system for use with Datastar.
 
-Please raise a github issue first before adding a PR, and reference the issue in the PR title. 
+It is useful for running "multiplayer" apps, where you want to use long lived SSE connections, and broadcast application 
+state changes to a large number of connected clients.
 
-This allows room for open discussion, as well as tracking of issues opened and closed.
+This is sometimes also referred to as the CQRS pattern.
 
+Using this builtin pub/sub system in the Zig SDK is optimized for both of the following use cases :
+
+```
+- Where you have a few thousand concurrent connections each subscribed to a handful of topics
+- Where you have a few thousand different topics, each with a handful of connections
+```
+
+Internally, we use a pair of indexes to ensure that both extremes of how topics and connections are arranged remain 
+performant.
+
+A cheap shared-CPU VPS will be good enough for about 2000 concurrent users no problems, where each connection receives a patchElement update every second.
+
+We have tested this on a bare metal cloud hosted machine with 6 core / 12 thread, and its OK for up to 48,000
+concurrent connections, each being updated every second.
+
+In both cases, its a network bottleneck, not a CPU / memory bottleneck.  
+
+If you want to stretch beyond that, then you start running into "Production Scale Problems", and should look at a more
+"Production Scale" pub/sub message bus, such as Nats, Redis Pub/Sub, Postgres Notify, Rabbit MQ, Kafka, etc.
+
+"Production Scale" means :
+```
+- Where you expect to run your application over multiple instances (even for failover sanity) - then you need an industrial message bus anyway
+- Where you expect to have way more than 40,0000 concurrent connections on a good day
+```
+
+Be aware of these limits if using the built in pub/sub
+
+Please read through some of the examples in the `examples` directory to see this being used in practice. 
+There is a lot of documentation below, which might be a bit daunting, but its dead easy to use once you 
+see whats going on.
+
+## Using Pub/Sub - 1) Create a Subscribers object
+
+First thing you need to do is create a `datastar.Subscribers` object, and store this in your global scope.
+
+Use this function from the datastar package to create a Subscribers object
+
+```zig
+    // create a Subscribers type, passing a parent Context type 
+    // The Context type used in the same way as when you create a httpz.Server(Ctx: type)
+    // and is typically the same value
+    pub fn Subscribers(comptime Context: type) type
+
+    // Then initialize an instance of this type using init(std.mem.Allocator)
+```
+
+For a complete example of setting this up, have a look at `examples/02_petshop.zig`
+which follows this basic outline :
+
+```zig
+// define our global 'App' context type
+pub const App = struct {
+    gpa: Allocator,
+    subscribers: datastar.Subscribers(*App), // <--- define the Type
+
+    pub fn init(gpa: Allocator) !*App {
+        const app = try gpa.create(App);
+        app.* = .{
+            .gpa = gpa,
+            .subscribers = try datastar.Subscribers(*App).init(gpa, app), // <--- create the instance
+        };
+        return app;
+    }
+}
+
+// then define the App as the global context in our main function
+pub fn main() !void {
+    var gpa = std.heap.DebugAllocator(.{}).init;
+    const allocator = gpa.allocator();
+
+    // Create the global App context here, which contains a Subscribers object, as above
+    var app = try App.init(allocator); 
+    defer app.deinit();
+
+    // Create the HTTP server, which also uses *App as the context
+    // and stores the value of the app instance in the server
+    var server = try httpz.Server(*App).init(allocator, .{
+        .port = PORT,
+        .address = "0.0.0.0",
+    }, app);
+}
+
+// So now all our HTTP handler functions now take a *App as the 1st param
+// with the value set to global *App context
+fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
+    res.content_type = .HTML;
+    res.body = @embedFile("index.html");
+}
+```
+
+As long as you already understand how contexts work in `http.zig`, then this should look familiar.
+
+If not, dont worry, copy the examples provided in the repo to get a working starting point.
+
+Thats the hard part out the way !!  
+
+Once you have that setup, its all extremely simple from here on.
+
+## Pub/Sub - 2) Subscribing to a topic
+
+In any of your handlers, once you have an SSE stream, you can use this to subscribe to a topic :
+```zig
+    pub fn subscribe(self: *Self, topic: []const u8, stream: std.net.Stream, func: CallbackFn) !void
+```
+
+The `topic` param is a simple string.
+
+The `stream` param is the `std.net.Stream` value of the connected stream.
+
+The `func: Callback` param is the fn ptr to the callback function that gets invoked when `topic` is 
+published to.
+
+
+Example of subscribing - from `examples/02_petshop.zig`
+```zig
+// User hits GET /cats
+// This creates a long lived SSE connection, and subscibes it to the "cats" topic
+// When "cats" topic is updated, the App.publishCatList callback gets called
+fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
+    const sse = try datastar.NewSSE(req, res);
+    try app.subscribe("cats", sse.stream, App.publishCatList);
+}
+```
+
+The signature the `Callback function` is determined by how you initially defined your `Subscribers` object.
+
+If you used, for example `Subscribers(*App)` then the `Callback function` looks like
+
+```zig
+  fn (ctx: *App, stream: std.net.Stream, session: SessionType)
+```
+
+If you used, for example `Subscribers(void)` then the `Callback function` looks like
+
+```zig
+  fn (stream: std.net.Stream)
+```
+
+## Pub/Sub - 3) Publishing to a topic
+
+In your app, you will receive events that change the application state (such as POST requests), at which 
+point you want to update all connected clients that these changes affect.
+
+You do this by broadcasting by topic.
+
+Use this function to broadcast by topic :
+```zig
+  pub fn publish(self: *Self, topic: []const u8) !void 
+```
+
+Example (from `examples/02_petshop.zig`)
+```zig
+// User hits POST /bids, which updates application state
+// and triggers an broadcast on the cats topic
+fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
+    const id_param = req.param("id").?;
+    ... do stuff to update the Application state
+    app.cats.items[id].bid = new_bid;
+
+    // update any screens subscribed to the "cats" topic
+    try app.publish("cats");
+}
+```
+
+Keep reading to see what happens now when the callback is invoked, and do the broadcast
+using `publishCatList`
+
+## Pub/Sub - 4) Writing the Callback function
+
+In your callback function where you want to publish a result to an existing open SSE connection,
+you will first need to get an SSE object from that stream first.
+
+You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
+
+Use this function, which takes an existing open std.net.Stream, and an optional buffer to use for writes.
+
+(ie - you can set it to the empty buffer &.{} for an unbuffered writer).
+
+
+```zig
+    pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+```
+
+If using this method, you MUST use `sse.flush()` when you are finished.
+
+Simplifed Example, from `examples/02_cats.zig` in the `publishCatList` function :
+
+```zig
+pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
+
+    // get an SSE object for the given stream
+    var buffer: [1024]u8 = undefined;
+    var sse = datastar.NewSSEFromStream(stream, &buffer);
+
+    // Set the sse to PatchElements, and return us a writer
+    var w = sse.patchElementsWriter(.{});
+
+    // setup a grid to display the cats in
+    try w.writeAll(
+        \\<div id="cat-list" class="grid grid-cols-3>
+    );
+
+    // each cat object can render itself to the given writer
+    for (app.cats.items) |cat| {
+        try cat.render(w);
+    }
+
+    // finish the original grid
+    try w.writeAll(
+        \\</div>
+    );
+
+    try sse.flush(); // dont forget to flush !
+```
+
+## Pub/Sub - 5) Using Sessions with Pub/Sub
+
+When you publish updates to a topic to all subscribers ... you dont always want to send the exact same content to
+every subscriber.
+
+You still want to broadcast to everyone on the same topic, but you also want to tailor the published output on a
+user-by-user basis in this case.
+
+We can do that by using unique "Session Values", and attaching that to each subscription.
+
+So use this variant when subscribing :
+```zig
+    pub fn subscribeSession(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback, session: SessionType) !void 
+```
+
+So now, in your Callback function, there is an extra paramater passed at the end called `session`
+
+If this not null, then you can use it to uniquely tailor the generated output to match what the user prefs are 
+connected to that session.
+
+For a comprehensive example of this, look at `examples/022_petshop.zig  / 022_cats.zig`
+
+This variant of the Cat Aution site allows the user to set preferences for how they want the Cats list to be 
+displayed - like by Highest Price / Most Recent Bid, etc.
+
+This preferences state is stored completely on the backend, and uses session cookies to segregate users, and 
+then generate something slightly different for each user on every `broadcast("cats")`
+
+Note - the point of this example is to demonstrate how to tailor output per subscriber on a broadcast ... nothing more than that.
+
+
+## Pub/Sub internals, memory management, handling dropouts and reconnects
+
+Internally, the Subscriber struct uses a few clever data structures.
+
+Each individual Subscription is defined as :
+```zig
+    const Subscription = struct {
+        stream: std.net.Stream,
+        action: Callback(T),
+        session: SessionType = null,
+    };
+```
+
+And then holds 2 indexes
+
+Subscriptions - which is a map[topic_name] -> [Subscription]
+
+This is used so that when publishing to a topic, the system can quickly get a list of all subscribers to that topic
+to write to.  This index keeps things fast when there is a large number of topics with a handful of subscribers.
+
+StreamTopicMap - which is a map[stream] -> [topics]
+
+This is used so that when given a stream, you can quickly see which topics it is subscribed to. This is important
+when a write to a stream fails, the system then needs to un-subscribe that stream / remove it from the Subscriptions
+list. Having the exact topic list means much faster looking through the Subscriptions list to cull them. 
+
+These are defined as 
+```zig
+    // A collection of subscriptions for each topic
+    const Subscriptions = std.StringHashMap(std.ArrayList(Subscription));
+
+    // A map of which topics each stream is subscribed to, for quick lookup by stream
+    const StreamTopicMap = std.AutoHashMap(std.net.Stream, std.ArrayList([]const u8));
+```
+
+During a publish event, if there is any write error to the stream, then that Stream is considered "dead", and
+added to a list of "dead connections".  After looping through the publish operation, the "dead connections list" is 
+then purged from the subscription lists.
+
+The backend doesnt reliably get to see when users drop out, except when it comes to writing to that connection
+and getting back a write error (typically error.NotOpenForWriting).
+
+So basically, on every broadcast event, the system will automatically detect lost connections, and trim down
+its subscriber list.
+
+Likewise when a user re-connects, this is just seen as a new connection, and they are appended to the list
+of subscribers by stream and topic.  On subscription, the system will do some sanity checks to ensure
+that connections cannot have multiple subscriptions to the same topic.
 
 # LLM Policy
 
-Avoid LLM like the plague please.
+Personal Opinion - Avoid LLM like the plague please.
 
 By all means use it for rubber ducking, but dont trust any code it produces, especially with Zig latest, let alone Datastar latest.
 
 Its just not there yet (even if it looks convincing sometimes)
 
-
+Hopefully I can be happy to remove this section from the docs in a few years time :)

@@ -87,10 +87,10 @@ pub const App = struct {
         const session_id = try std.fmt.allocPrint(app.gpa, "{d}", .{s});
         try app.sessions.put(session_id, .{});
 
-        std.debug.print("Sessions :\n", .{});
+        std.debug.print("App Sessions after adding a new session ID:\n", .{});
         var it = app.sessions.keyIterator();
         while (it.next()) |k| {
-            std.debug.print("K {s}\n", .{k.*});
+            std.debug.print("- {s}\n", .{k.*});
         }
 
         return s;

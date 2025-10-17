@@ -468,13 +468,45 @@ pub fn Subscribers(comptime T: type) type {
             self.stream_map.deinit();
         }
 
+        pub fn debugState(self: *Self, desc: []const u8) void {
+            {
+                std.debug.print("Subscription States - {s}\n", .{desc});
+                var iterator = self.subs.iterator();
+                while (iterator.next()) |entry| {
+                    std.debug.print("  Topic: {s} Streams: [ ", .{entry.key_ptr.*});
+                    for (entry.value_ptr.*.items) |sub| {
+                        std.debug.print(" {d}", .{sub.stream.handle});
+                        if (sub.session) |ss| {
+                            std.debug.print(":{s}", .{ss});
+                        }
+                    }
+                    std.debug.print(" ]\n", .{});
+                }
+            }
+
+            {
+                var iterator = self.stream_topics.iterator();
+                while (iterator.next()) |entry| {
+                    std.debug.print("  Stream: {d} Topics: [", .{entry.key_ptr.*.handle});
+
+                    for (entry.value_ptr.*.items) |topic| {
+                        std.debug.print(" {s}", .{topic});
+                    }
+                    std.debug.print(" ]\n", .{});
+                }
+            }
+        }
+
         pub fn subscribe(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback(T)) !void {
             return self.subscribeSession(topic, stream, func, null);
         }
 
         pub fn subscribeSession(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback(T), session: SessionType) !void {
             self.mutex.lock();
-            defer self.mutex.unlock();
+            defer {
+                self.mutex.unlock();
+                self.debugState("after subscribe session");
+            }
 
             // check first that the given stream isnt already subscribed to this topic !!
             {
@@ -514,24 +546,25 @@ pub fn Subscribers(comptime T: type) type {
                 try self.subs.put(topic, new_sub_list);
             }
 
+            const topic_copy = try self.gpa.dupe(u8, topic);
             if (self.stream_topics.getPtr(stream)) |topics| {
-                try topics.append(self.gpa, topic);
+                try topics.append(self.gpa, topic_copy);
             } else {
                 var new_topic_list: std.ArrayList([]const u8) = .empty;
-                try new_topic_list.append(self.gpa, try self.gpa.dupe(u8, topic));
+                try new_topic_list.append(self.gpa, topic_copy);
                 try self.stream_topics.put(stream, new_topic_list);
             }
 
-            // Debug output the current state of the maps
-            std.debug.print("Updated subs on topic {s} :\n", .{topic});
-            for (self.subs.get(topic).?.items, 0..) |s, ii| {
-                std.debug.print("  {d} - {any} Session {?s}\n", .{ ii, s.stream, s.session });
-            }
-            std.debug.print("Updated topics by stream {d} :\n", .{stream.handle});
-            for (self.stream_topics.get(stream).?.items, 0..) |t, ii| {
-                std.debug.print("  {d} - {s}\n", .{ ii, t });
-            }
-            std.debug.print("Total {d} topics and {d} streams tracked\n", .{ self.subs.count(), self.stream_topics.count() });
+            // // Debug output the current state of the maps
+            // std.debug.print("Updated subs on topic {s} :\n", .{topic});
+            // for (self.subs.get(topic).?.items, 0..) |s, ii| {
+            //     std.debug.print("  {d} - {any} Session {?s}\n", .{ ii, s.stream, s.session });
+            // }
+            // std.debug.print("Updated topics by stream {d} :\n", .{stream.handle});
+            // for (self.stream_topics.get(stream).?.items, 0..) |t, ii| {
+            //     std.debug.print("  {d} - {s}\n", .{ ii, t });
+            // }
+            // std.debug.print("Total {d} topics and {d} streams tracked\n", .{ self.subs.count(), self.stream_topics.count() });
         }
 
         fn purge(self: *Self, streams: StreamList) void {
@@ -539,7 +572,8 @@ pub fn Subscribers(comptime T: type) type {
 
             const t1 = std.time.microTimestamp();
             defer {
-                std.debug.print("Purge took only {d}μs\n", .{std.time.microTimestamp() - t1});
+                self.debugState("after purge session");
+                std.debug.print("Purge took {d}μs\n", .{std.time.microTimestamp() - t1});
             }
 
             // get the topics that the stream was subscribed to
@@ -557,20 +591,21 @@ pub fn Subscribers(comptime T: type) type {
                                 for (streams.items) |st| {
                                     if (sub.stream.handle == st.handle) {
                                         _ = subs.swapRemove(i);
-                                        std.debug.print("Closing subscriber {d}:{d} on topic {s}\n", .{ i, sub.stream.handle, topic });
+                                        std.debug.print("Closing subscriber Stream {d} on topic {s}\n", .{ sub.stream.handle, topic });
                                     }
                                 }
                             }
                         }
-                        // self.gpa.free(topic);
                     }
-                    // topics.deinit(self.gpa);
+                    // cleanup and remove the topics for this stream
+                    for (topics.items) |topic| {
+                        self.gpa.free(topic);
+                    }
+                    topics.deinit(self.gpa);
                 }
-                std.debug.print("Removing topic list for stream {d}\n", .{stream.handle});
+                std.debug.print("Removing topic list for Stream {d}\n", .{stream.handle});
                 _ = self.stream_topics.remove(stream);
             }
-
-            std.debug.print("After purge - Total {d} topics and {d} streams tracked\n", .{ self.subs.count(), self.stream_topics.count() });
         }
 
         pub fn publish(self: *Self, topic: []const u8) !void {
@@ -642,10 +677,10 @@ pub fn Subscribers(comptime T: type) type {
                     }
                 }
 
-                std.debug.print("Remaining subs on topic {s} :\n", .{topic});
-                for (subs.items, 0..) |s, ii| {
-                    std.debug.print("  {d} - {any} Session {?s}\n", .{ ii, s.stream, s.session });
-                }
+                // std.debug.print("Remaining subs on topic {s} :\n", .{topic});
+                // for (subs.items, 0..) |s, ii| {
+                //     std.debug.print("  {d} - {any} Session {?s}\n", .{ ii, s.stream, s.session });
+                // }
             }
         }
     };
