@@ -504,8 +504,8 @@ pub fn Subscribers(comptime T: type) type {
         pub fn subscribeSession(self: *Self, topic: []const u8, stream: std.net.Stream, func: Callback(T), session: SessionType) !void {
             self.mutex.lock();
             defer {
-                self.mutex.unlock();
                 self.debugState("after subscribe session");
+                self.mutex.unlock();
             }
 
             // check first that the given stream isnt already subscribed to this topic !!
