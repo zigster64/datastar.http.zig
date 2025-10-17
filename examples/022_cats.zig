@@ -87,10 +87,10 @@ pub const App = struct {
         const session_id = try std.fmt.allocPrint(app.gpa, "{d}", .{s});
         try app.sessions.put(session_id, .{});
 
-        std.debug.print("Sessions :\n", .{});
+        std.debug.print("App Sessions after adding a new session ID:\n", .{});
         var it = app.sessions.keyIterator();
         while (it.next()) |k| {
-            std.debug.print("K {s}\n", .{k.*});
+            std.debug.print("- {s}\n", .{k.*});
         }
 
         return s;
@@ -160,7 +160,7 @@ pub const App = struct {
         const t1 = std.time.microTimestamp();
         defer {
             const t2 = std.time.microTimestamp();
-            logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session.?).int("elapsed (μs)", t2 - t1).log();
+            logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session orelse "null").int("elapsed (μs)", t2 - t1).log();
         }
 
         var buffer: [1024]u8 = undefined;

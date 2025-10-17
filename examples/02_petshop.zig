@@ -96,9 +96,9 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         bids: []usize,
     };
     const signals = try datastar.readSignals(Bids, req);
-    std.debug.print("bids {any}\n", .{signals.bids});
+    // std.debug.print("bids {any}\n", .{signals.bids});
     const new_bid = signals.bids[id];
-    std.debug.print("new bid {}\n", .{new_bid});
+    // std.debug.print("new bid {}\n", .{new_bid});
     app.cats.items[id].bid = new_bid;
 
     // update any screens subscribed to "cats"

@@ -84,15 +84,15 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const stream = try res.startEventStreamSync();
+    const sse = try datastar.NewSSE(req, res);
     // DO NOT close - this stream stays open forever
     // and gets subscribed to "cats" update events
-    //
+
     var cookies = req.cookies();
     if (cookies.get("session")) |session| {
-        try app.subscribeSession("cats", stream, App.publishCatList, session);
+        try app.subscribeSession("cats", sse.stream, App.publishCatList, session);
     } else {
-        try app.subscribe("cats", stream, App.publishCatList);
+        try app.subscribe("cats", sse.stream, App.publishCatList);
         std.debug.print("cant find session cookie ???\n", .{});
     }
 }
@@ -119,9 +119,9 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         bids: []usize,
     };
     const signals = try datastar.readSignals(Bids, req);
-    std.debug.print("bids {any}\n", .{signals.bids});
+    // std.debug.print("bids {any}\n", .{signals.bids});
     const new_bid = signals.bids[id];
-    std.debug.print("new bid {}\n", .{new_bid});
+    // std.debug.print("new bid {}\n", .{new_bid});
 
     app.cats.items[id].bid = new_bid;
     app.cats.items[id].ts = std.time.nanoTimestamp();
@@ -130,7 +130,7 @@ fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
     try app.publish("cats");
 }
 
-fn postSort(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
+fn postSort(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     app.mutex.lock();
     defer {
@@ -147,17 +147,20 @@ fn postSort(app: *App, req: *httpz.Request, _: *httpz.Response) !void {
         bids: []usize,
     };
     if (try req.json(params)) |p| {
-        std.debug.print("request json body for sort = {s}\n", .{p.sort});
         const new_sort = SortType.fromString(p.sort);
 
         var cookies = req.cookies();
         if (cookies.get("session")) |session| {
             if (app.sessions.getPtr(session)) |app_session| {
-                std.debug.print("got this session {any}\n", .{app_session});
+                std.debug.print("  PostSort for Session {s} changed prefs from {t} -> {t}\n", .{ session, app_session.sort, new_sort });
                 app_session.sort = new_sort;
-                std.debug.print("upgraded to {any}\n", .{app_session});
                 try app.publishSession("cats", session);
+                return;
             }
         }
     }
+    std.debug.print("no cookie / no session - user must reconnect to get a new cookie", .{});
+    res.status = 400;
+    res.body = "No session";
+    return;
 }

@@ -8,8 +8,8 @@
             // using the dev branch so we are on zig 0.15.dev
             // Im still using version 855, later versions of zig dev (and http.zig dev) are so out of whack
             // due to writergate and other stdlib changes, that Im pinning things to this stable commit here :)
-            .url = "git+https://github.com/karlseguin/http.zig?ref=master#00014146eaf9e17750b752fa4905f7623fbe30f7",
-            .hash = "httpz-0.0.0-PNVzrFndBgDr9zQx7Mj_MFiqYslgcRlx45FJ_gERmRTb",
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#5e5ab5f82477252fd85943bcb33db483bde6de86",
+            .hash = "httpz-0.0.0-PNVzrLndBgBwKYPO0v3OFD-6741_9uKdWtU27sil2-df",
         },
         .logz = .{
             .url = "git+https://github.com/karlseguin/log.zig?ref=master#cc5268932e84da9dad09fd48b544d67212889c02",

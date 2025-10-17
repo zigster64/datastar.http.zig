@@ -35,6 +35,7 @@ pub fn build(b: *std.Build) void {
         name: []const u8,
         libc: bool = false,
     }{
+        .{ .file = "tests/validation.zig", .name = "validation-test" },
         .{ .file = "examples/01_basic.zig", .name = "example_1" },
         .{ .file = "examples/02_petshop.zig", .name = "example_2" },
         .{ .file = "examples/022_petshop.zig", .name = "example_22" },
