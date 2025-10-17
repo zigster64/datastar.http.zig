@@ -596,9 +596,7 @@ pub fn Subscribers(comptime T: type) type {
                                 }
                             }
                         }
-                    }
-                    // cleanup and remove the topics for this stream
-                    for (topics.items) |topic| {
+                        // the topic was duped in SubscribeSession, so get rid of it now
                         self.gpa.free(topic);
                     }
                     topics.deinit(self.gpa);
