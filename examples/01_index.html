@@ -174,9 +174,8 @@
         <div class="card-body">
           <h2 class="card-title">(6) Patch Signals using SSE - only if missing</h2>
           <p class="border-1">Click the button to use PatchSignals to update the signals on the
-            card, but only ones that are missing. so initially thats just 'new_foo' and new_bar', then nothing updates
-            after
-            that</p>
+            card, but only ones that are missing. so initially thats just 'newfoo' and 'newbar', then nothing updates
+            after that. You can go to test 7 to explicitly remove these signals to test this.</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/onlymissing')">Patch Signals if
@@ -196,12 +195,12 @@
         <div class=" card-body">
           <h2 class="card-title">(7) Patch Signals using SSE - Remove</h2>
           <p class="border-1">Click the button to use PatchSignals to remove the signals called '$foo' and '$bar' </p>
-          <p class="bg-red-400 rounded-md" data-show="!!$foo">~I only show if $foo exists~</p>
-          <p class="bg-yellow-400 rounded-md" data-show="!!$bar">~I only show if $bar exists~</p>
-          <p class="bg-green-400 rounded-md" data-show="!$fooj">~I only show if $fooj exists~</p>
-          <p class="bg-blue-400 rounded-md" data-show="!!$barj">~I only show if $barj exists~</p>
-          <p class="bg-purple-400 rounded-md" data-show="!!$new_foo">~I only show if $new_foo exists~</p>
-          <p class="bg-sky-400 rounded-md" data-show="!!$new_bar">~I only show if $new_bar exists~</p>
+          <p class="bg-red-400 rounded-md" data-show="$foo > 0">~I only show if $foo exists~</p>
+          <p class="bg-yellow-400 rounded-md" data-show="$bar > 0">~I only show if $bar exists~</p>
+          <p class="bg-green-400 rounded-md" data-show="$fooj > 0">~I only show if $fooj exists~</p>
+          <p class="bg-blue-400 rounded-md" data-show="$barj > 0">~I only show if $barj exists~</p>
+          <p class="bg-purple-400 rounded-md" data-show="$newfoo > 0">~I only show if $newfoo exists~</p>
+          <p class="bg-sky-400 rounded-md" data-show="$newbar > 0">~I only show if $newbar exists~</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/foo')">Remove Signal
@@ -212,12 +211,12 @@
               'fooj'</button>
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/barj')">Remove Signal
               'barj'</button>
-            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/new_foo')">Remove Signal
-              'new_foo'</button>
-            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/new_bar')">Remove Signal
-              'new_bar'</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/newfoo')">Remove Signal
+              'newfoo'</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/newbar')">Remove Signal
+              'newbar'</button>
             <button class="btn btn-primary"
-              data-on:click="@get('/patch/signals/remove/foo,bar,fooj,barj,new_foo,new_bar')">Remove All
+              data-on:click="@get('/patch/signals/remove/foo,bar,fooj,barj,newfoo,newbar')">Remove All
               Signals</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">

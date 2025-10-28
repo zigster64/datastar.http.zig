@@ -243,14 +243,14 @@ fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
 
     try sse.patchSignals(
         .{
-            .new_foo = foo,
-            .new_bar = bar,
+            .newfoo = foo,
+            .newbar = bar,
         },
         .{},
         .{ .only_if_missing = true },
     );
 
-    try sse.executeScript("console.log('Patched new_foo and new_bar, but only if missing');", .{});
+    try sse.executeScript("console.log('Patched newfoo and newbar, but only if missing');", .{});
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
@@ -285,7 +285,7 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchSignalsRemove").int("foo", null).int("bar", null).int("elapsed (μs)", t2 - t1).log();
+    logz.info().string("event", "patchSignalsRemove").string("remove", signals_to_remove).int("elapsed (μs)", t2 - t1).log();
 }
 
 fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
