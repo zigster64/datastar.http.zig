@@ -8,18 +8,28 @@ https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
 
 This SDK uses streams all the way down, so there is no implicit extra allocations.
 
-Current version is based on Zig 0.15.2, and uses the latest master of http.zig
+Versions :
+- Zig 0.15.2
+- http.zig latest master
+- Datastar 1.0.0-RC6
+- DailyUI 5
 
-It uses the latest "writergate" changes, and makes good use of the high speed buffered 
+It uses the latest "writergate" changes for zig 0.15.2, and makes good use of the high speed buffered 
 interfaces. The SDK is very fast, and very lightweight.
 
 Whilst this is built for http.zig, it should work as well with jetzig / tokamak, etc
 as they use http.zig under the hood.
 
+# Future Updates
+
 Future updates to this repo will include support for Zig stdlib http server, as well as 
 other popular HTTP server libs, such as zzz and tardy, and zap.
 
-Future updates will provide example apps that demonstrate using jetzig and tokamak as well.
+Will provide example apps that demonstrate using jetzig and tokamak as well.
+
+Once this lib is fully generic across multiple frameworks, I will rename it to `datastar.zig` to reflect that.
+
+
 
 # Audience and Scope
 
