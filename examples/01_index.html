@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="napoleon">
 
 <head>
   <meta charset="UTF-8" />
@@ -198,6 +197,9 @@
           <h2 class="card-title">(7) Patch Signals using SSE - Remove</h2>
           <p class="border-1">Click the button to use PatchSignals to remove signals</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
+          <p class="border-1">WARNING - with the current design of D*, deleting signals will break all bindings and
+            references to the deleted signal.<br>You will see this effect on the other patchSignals screens after
+            deleting any signal.</p>
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/foo')">Remove Signal
               'foo'</button>

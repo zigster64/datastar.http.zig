@@ -21,10 +21,10 @@ const Cat = struct {
             \\      </div>
             \\    </div>
             \\    <label class="input">$ 
-            \\      <input type="number" placeholder="Bid" class="grow" data-bind-bids.{[id]} />
+            \\      <input type="number" placeholder="Bid" class="grow" data-bind:bids.{[id]} />
             \\    </label>
             \\    <div class="justify-end card-actions">
-            \\      <button class="btn btn-primary" data-on-click="@post('/bid/{[id]}')">Place Bid</button>
+            \\      <button class="btn btn-primary" data-on:click="@post('/bid/{[id]}', {{filterSignals: {{include: '^bids$'}}}}">Place Bid</button>
             \\    </div>
             \\  </div>
             \\</div>

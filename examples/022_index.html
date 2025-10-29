@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CatBay Auctions - DataStar Subscribe Function</title>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@release-candidate/bundles/datastar.js"></script>
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.6/bundles/datastar.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
@@ -46,7 +46,7 @@
   </div>
 
   <div class="mt-2 ml-20">
-    <select data-bind-sort class="select" data-on-change="@post('/sort')">
+    <select data-bind:sort class="select" data-on:change="@post('/sort', {filterSignals: {include:'^sort$'}} )">
       <option value="id" selected>Sort by ID</option>
       <option value="low">Price - Lowest to Highest</option>
       <option value="high">Price - Highest to Lowest</option>
@@ -54,7 +54,7 @@
     </select>
   </div>
 
-  <div id="cat-list" data-on-load="@get('/cats')">... Loading Cats</div>
+  <div id="cat-list" data-init="@get('/cats')">... Loading Cats</div>
 
 </body>
 

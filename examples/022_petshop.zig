@@ -51,25 +51,38 @@ pub fn main() !void {
     try server.listen();
 }
 
-fn index(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
+fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     defer {
         const t2 = std.time.microTimestamp();
         logz.info().string("event", "index").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const session_id = try app.newSessionID();
-    // generate a Session ID and attach it to this user via a cookie
-    try res.setCookie("session", try std.fmt.allocPrint(res.arena, "{d}", .{session_id}), .{
-        .path = "/",
-        // .domain = "localhost",
-        // .max_age = 9001,
-        // .secure = true,
-        .http_only = true,
-        // .partitioned = true,
-        // .same_site = .none, // or .none, or .strict (or null to leave out)
-    });
-    std.debug.print("new index page - set cookie session = {d}\n", .{session_id});
+    // IF the new connection already has a session cookie, then use that, otherwise generate a brand new session
+    var session_id: usize = 0;
+
+    var cookies = req.cookies();
+    std.debug.print("index cookies {any}\n", .{cookies});
+    if (cookies.get("session")) |session_cookie| {
+        session_id = std.fmt.parseInt(usize, session_cookie, 10) catch 0;
+        logz.info().string("existing session", session_cookie).int("numeric_value", session_id).log();
+
+        try app.ensureSession(session_id);
+    } else {
+        session_id = try app.newSessionID();
+        //
+        // generate a Session ID and attach it to this user via a cookie
+        try res.setCookie("session", try std.fmt.allocPrint(res.arena, "{d}", .{session_id}), .{
+            .path = "/",
+            // .domain = "localhost",
+            // .max_age = 9001,
+            // .secure = true,
+            .http_only = true,
+            // .partitioned = true,
+            // .same_site = .none, // or .none, or .strict (or null to leave out)
+        });
+        logz.info().string("new session", "no initial cookie").int("numeric_value", session_id).log();
+    }
 
     res.content_type = .HTML;
     res.body = @embedFile("022_index.html");
@@ -91,6 +104,7 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var cookies = req.cookies();
     if (cookies.get("session")) |session| {
         try app.subscribeSession("cats", sse.stream, App.publishCatList, session);
+        try app.subscribeSession("prefs", sse.stream, App.publishPrefs, session);
     } else {
         try app.subscribe("cats", sse.stream, App.publishCatList);
         std.debug.print("cant find session cookie ???\n", .{});
@@ -144,17 +158,18 @@ fn postSort(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
 
     const params = struct {
         sort: []const u8,
-        bids: []usize,
     };
     if (try req.json(params)) |p| {
         const new_sort = SortType.fromString(p.sort);
 
         var cookies = req.cookies();
         if (cookies.get("session")) |session| {
+            std.debug.print("postSort got session cookie {s}\n", .{session});
             if (app.sessions.getPtr(session)) |app_session| {
                 std.debug.print("  PostSort for Session {s} changed prefs from {t} -> {t}\n", .{ session, app_session.sort, new_sort });
                 app_session.sort = new_sort;
                 try app.publishSession("cats", session);
+                try app.publishSession("prefs", session);
                 return;
             }
         }
