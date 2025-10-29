@@ -27,7 +27,7 @@
     <div class="flex items-center gap-4 ">
       <span class="btn btn-ghost text-xl text-white block md:hidden">DataStar Basic Ops</span>
       <span class="btn btn-ghost text-xl text-center text-white hidden md:block">DataStar Basic Operations
-        Example</span>
+        Example<br>v1.0.0-RC6</span>
       <a href="http://data-star.dev" target="_">
         <img class="w-12 sm:w-24"
           src="https://camo.githubusercontent.com/41305ad22f4e9a19afaee1aaa6d51dd6392894aa80bd3423633b89baccde8d38/68747470733a2f2f646174612d737461722e6465762f7374617469632f696d616765732f726f636b65742d353132783531322e706e67">
@@ -45,21 +45,21 @@
   <!--Navigation controls to reach examples-->
   <div id="example-nav" class="w-full h-2/12 flex flex-row justify-center items-end gap-2 mx-auto">
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#text-html-page" title="text/html">1</a>
+      href="#text-html-page" title="text/html">1<br><small>HTML</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-elem-page" title="Patch Elements">2</a>
+      href="#patch-elem-page" title="Patch Elements">2<br><small>PatchEl</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-elem-opt-page" title="Patch Elements With Options">3</a>
+      href="#patch-elem-opt-page" title="Patch Elements With Options">3<br><small>PatchElOpt</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#json-signals-page" title="JSON Signals">4</a>
+      href="#json-signals-page" title="JSON Signals">4<br><small>Json</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-signals-page" title="Patch Signals">5</a>
+      href="#patch-signals-page" title="Patch Signals">5<br><small>PatchSig</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-signals-if-missing-page" title="Patch Signals If Missing">6</a>
+      href="#patch-signals-if-missing-page" title="Patch Signals If Missing">6<br><small>PatchSigMissing</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-signals-remove-page" title="Patch Signals - Remove">7</a>
+      href="#patch-signals-remove-page" title="Patch Signals - Remove">7<br><small>SignalRemove</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#execute-script-page" title="Execute Script">8</a>
+      href="#execute-script-page" title="Execute Script">8<br><small>Script</small></a>
   </div>
   <!--carousel container-->
   <div class="carousel rounded-box w-screen h-3/4">
@@ -140,6 +140,7 @@
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/json')">JSON Update</button>
           </div>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
             <div class="collapse-content text-sm" data-init="@get('/code/4')">
@@ -160,6 +161,7 @@
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/signals')">Patch Signals</button>
           </div>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
             <div class="collapse-content text-sm" data-init="@get('/code/5')">
@@ -176,11 +178,11 @@
           <p class="border-1">Click the button to use PatchSignals to update the signals on the
             card, but only ones that are missing. so initially thats just 'newfoo' and 'newbar', then nothing updates
             after that. You can go to test 7 to explicitly remove these signals to test this.</p>
-          <code class="border-1 bg-gray-400" data-json-signals></code>
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/onlymissing')">Patch Signals if
               Missing</button>
           </div>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
             <div class="collapse-content text-sm" data-init="@get('/code/6')">
@@ -194,13 +196,7 @@
       <div class="card w-8/12 bg-slate-300 card-lg shadow-sm m-auto">
         <div class=" card-body">
           <h2 class="card-title">(7) Patch Signals using SSE - Remove</h2>
-          <p class="border-1">Click the button to use PatchSignals to remove the signals called '$foo' and '$bar' </p>
-          <p class="bg-red-400 rounded-md" data-show="$foo > 0">~I only show if $foo exists~</p>
-          <p class="bg-yellow-400 rounded-md" data-show="$bar > 0">~I only show if $bar exists~</p>
-          <p class="bg-green-400 rounded-md" data-show="$fooj > 0">~I only show if $fooj exists~</p>
-          <p class="bg-blue-400 rounded-md" data-show="$barj > 0">~I only show if $barj exists~</p>
-          <p class="bg-purple-400 rounded-md" data-show="$newfoo > 0">~I only show if $newfoo exists~</p>
-          <p class="bg-sky-400 rounded-md" data-show="$newbar > 0">~I only show if $newbar exists~</p>
+          <p class="border-1">Click the button to use PatchSignals to remove signals</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
           <div class="justify-end card-actions">
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/foo')">Remove Signal
