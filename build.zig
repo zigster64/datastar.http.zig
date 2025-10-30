@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_test.step);
 
-    const examples = [_]struct {
+    const httpz_examples = [_]struct {
         file: []const u8,
         name: []const u8,
         libc: bool = false,
@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) void {
     };
 
     {
-        for (examples) |ex| {
+        for (httpz_examples) |ex| {
             const exe = b.addExecutable(.{
                 .name = ex.name,
                 .root_module = b.createModule(.{
