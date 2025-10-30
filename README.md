@@ -81,13 +81,22 @@ zig build
 
 Then open your browser to http://localhost:8081
 
+
 This will bring up a kitchen sink app that shows each of the SDK functions in use in the browser, with a 
 section that displays the code to use on your backend to drive the page you are looking at.
+
+![Screenshot of example_1](./docs/images/example_1.png)
+
+---
 
 To run the additional example apps, try
 
 `./zig-out/bin/example_2` - a simple cat auction site.
 Bring up multiple browser windows and watch the bids get updated in realtime to all windows.
+
+![Screenshot of example_2](./docs/images/example_2.png)
+
+---
 
 `./zig-out/bin/example_22` - a more complex cat aution site, with session based preferences managed at the backend.
 Bring up multiple browser windows and watch the bids get updated in realtime to all windows.
@@ -97,8 +106,14 @@ Use a different machine, or browser, or use the 'Profiles' feature in Chrome/Saf
 Note that the bids update in realtime across all browsers, and just the preferences changes are sticky across all 
 windows belonging to the same machine/profile.
 
+![Screenshot of example_22](./docs/images/example_22.png)
+
+---
+
 `./zig-out/bin/example_5` - an excellent and exciting multi-player farming simulator, where users can plant and attend 
 to various crops to help them grow to harvest (or whither and die if neglected)
+
+![Screenshot of example_5](./docs/images/example_5.png)
 
 # Validation Test
 
