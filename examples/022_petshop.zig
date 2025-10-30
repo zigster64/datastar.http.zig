@@ -67,7 +67,7 @@ fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         session_id = std.fmt.parseInt(usize, session_cookie, 10) catch 0;
         logz.info().string("existing session", session_cookie).int("numeric_value", session_id).log();
 
-        try app.ensureSession(session_id);
+        try app.ensureSession(session_cookie);
     } else {
         session_id = try app.newSessionID();
         //

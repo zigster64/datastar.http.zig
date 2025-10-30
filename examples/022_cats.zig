@@ -96,20 +96,14 @@ pub const App = struct {
         return s;
     }
 
-    pub fn ensureSession(app: *App, session_id: usize) !void {
+    pub fn ensureSession(app: *App, session_id: []const u8) !void {
         app.mutex.lock();
         defer app.mutex.unlock();
 
-        const session_id_str = try std.fmt.allocPrint(app.gpa, "{d}", .{session_id});
-
-        if (app.sessions.get(session_id_str) == null) {
-            try app.sessions.put(session_id_str, .{});
+        if (app.sessions.get(session_id) == null) {
+            try app.sessions.put(try app.gpa.dupe(u8, session_id), .{});
             std.debug.print("Had to add session {d} to my sessions list, because the client says its there, but I dont know about it\n", .{session_id});
         }
-    }
-
-    pub fn enableSubscriptions(app: *App) !void {
-        app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
     }
 
     pub fn deinit(app: *App) void {
