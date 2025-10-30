@@ -132,7 +132,7 @@ const datastar = b.dependency("datastar", .{
 });
 
 // the executable from your call to b.addExecutable(...)
-exe.root_module.addImport("datastar", httpz.module("datastar"));
+exe.root_module.addImport("datastar", datastar.module("datastar"));
 ```
 
 
