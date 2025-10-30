@@ -761,16 +761,3 @@ its subscriber list.
 Likewise when a user re-connects, this is just seen as a new connection, and they are appended to the list
 of subscribers by stream and topic.  On subscription, the system will do some sanity checks to ensure
 that connections cannot have multiple subscriptions to the same topic.
-
-# LLM Policy
-
-Personal Opinion - Avoid LLM like the plague please.
-
-Dont know about you, but im at leasnt 2x more productive with every AI tool disabled in my IDE.
-My editor is just way faster that way, and I think so much clearer without the constant "suggestions".
-
-By all means use it for rubber ducking outside of coding, but dont trust any code it produces, especially with Zig latest, let alone Datastar latest.
-
-Its just not there yet (even if it looks convincing sometimes)
-
-Please keep this in mind if submitting PRs as well.
