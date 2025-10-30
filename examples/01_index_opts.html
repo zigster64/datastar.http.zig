@@ -5,7 +5,7 @@
   <p>Select Morph Options</p>
   <div class="grid-cols-2">
     <div>
-      <select data-bind-morph>
+      <select data-bind:morph>
         <option value="replace">Replace</option>
         <option value="prepend">Prepend Child</option>
         <option value="append">Append Child</option>
@@ -16,13 +16,13 @@
     </div>
   </div>
   <div class="justify-end card-actions">
-    <button class="btn btn-warning" data-on-click="@get('/patch/opts/reset')">Reset</button>
-    <button class="btn btn-primary" data-on-click="@get('/patch/opts')">Patch With Options</button>
+    <button class="btn btn-warning" data-on:click="@get('/patch/opts/reset')">Reset</button>
+    <button class="btn btn-primary" data-on:click="@get('/patch/opts')">Patch With Options</button>
   </div>
   <details class="collapse bg-base-100 border-base-300 border">
     <summary class="collapse-title font-semibold">Show Code</summary>
-    <div class="collapse-content text-sm" data-on-load="@get('/code/2')">
-      <div id='code-2' class='mockup-code w-full'></div>
+    <div class="collapse-content text-sm" data-init="@get('/code/3')">
+      <div id='code-3' class='mockup-code w-full'></div>
     </div>
   </details>
 </div>

@@ -147,8 +147,8 @@ const Plant = struct {
             \\    <div class="w-full h-full flex flex-col justify-center items-center">
             \\      <div class="avatar w-32 h-32 rounded-md pb-4">
             \\        <img class="{[class]s} rounded-md"
-            \\          data-on-click="@post('/planteffect/inc/{[id]}')"
-            \\          data-on-contextmenu="evt.preventDefault();@post('/planteffect/dec/{[id]}')"
+            \\          data-on:click="@post('/planteffect/inc/{[id]}')"
+            \\          data-on:contextmenu="evt.preventDefault();@post('/planteffect/dec/{[id]}')"
             \\          src="{[img]s}"
             \\        >
             \\      </div>
@@ -299,7 +299,7 @@ pub const App = struct {
                 try w.print(
                     \\<div class="card px-16 py-6 w-fit h-fit bg-yellow-700 card-lg shadow-sm m-auto mt-4 border-4 border-solid border-yellow-900">
                     \\  <div class="avatar">
-                    \\      <div class="m-auto w-48 h-48 rounded-md" data-on-click="@post('/planteffect/inc/{[id]}')"> </div>
+                    \\      <div class="m-auto w-48 h-48 rounded-md" data-on:click="@post('/planteffect/inc/{[id]}')"> </div>
                     \\  </div>
                     \\</div>
                 , .{ .id = i });

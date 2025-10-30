@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="napoleon">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zig DataStar Streaming API</title>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@release-candidate/bundles/datastar.js"></script>
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.6/bundles/datastar.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
@@ -27,7 +26,7 @@
     <div class="flex items-center gap-4 ">
       <span class="btn btn-ghost text-xl text-white block md:hidden">DataStar Basic Ops</span>
       <span class="btn btn-ghost text-xl text-center text-white hidden md:block">DataStar Basic Operations
-        Example</span>
+        Example<br>v1.0.0-RC6</span>
       <a href="http://data-star.dev" target="_">
         <img class="w-12 sm:w-24"
           src="https://camo.githubusercontent.com/41305ad22f4e9a19afaee1aaa6d51dd6392894aa80bd3423633b89baccde8d38/68747470733a2f2f646174612d737461722e6465762f7374617469632f696d616765732f726f636b65742d353132783531322e706e67">
@@ -45,21 +44,21 @@
   <!--Navigation controls to reach examples-->
   <div id="example-nav" class="w-full h-2/12 flex flex-row justify-center items-end gap-2 mx-auto">
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#text-html-page" title="text/html">1</a>
+      href="#text-html-page" title="text/html">1<br><small>HTML</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-elem-page" title="Patch Elements">2</a>
+      href="#patch-elem-page" title="Patch Elements">2<br><small>PatchEl</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-elem-opt-page" title="Patch Elements With Options">3</a>
+      href="#patch-elem-opt-page" title="Patch Elements With Options">3<br><small>PatchElOpt</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#json-signals-page" title="JSON Signals">4</a>
+      href="#json-signals-page" title="JSON Signals">4<br><small>Json</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-signals-page" title="Patch Signals">5</a>
+      href="#patch-signals-page" title="Patch Signals">5<br><small>PatchSig</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-signals-if-missing-page" title="Patch Signals If Missing">6</a>
+      href="#patch-signals-if-missing-page" title="Patch Signals If Missing">6<br><small>PatchSigMissing</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#patch-signals-remove-page" title="Patch Signals - Remove">7</a>
+      href="#patch-signals-remove-page" title="Patch Signals - Remove">7<br><small>SignalRemove</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#execute-script-page" title="Execute Script">8</a>
+      href="#execute-script-page" title="Execute Script">8<br><small>Script</small></a>
   </div>
   <!--carousel container-->
   <div class="carousel rounded-box w-screen h-3/4">
@@ -69,12 +68,12 @@
           <h2 class="card-title">(1) text/html Update</h2>
           <p id="text-html">Click the button to update this content from a simple text/html output</p>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/text-html')">text/html Update</button>
+            <button class="btn btn-primary" data-on:click="@get('/text-html')">text/html Update</button>
           </div>
         </div>
         <details class="collapse bg-base-100 border-base-300 border">
           <summary class="collapse-title font-semibold">Show Code</summary>
-          <div class="collapse-content text-sm" data-on-load="@get('/code/1')">
+          <div class="collapse-content text-sm" data-init="@get('/code/1')">
             <div id='code-1' class='mockup-code w-full'></div>
           </div>
         </details>
@@ -86,12 +85,12 @@
           <h2 class="card-title">(2) PatchElements using SSE</h2>
           <p id="mf-patch">Click the button to use PatchElements to update this content using <i>.outer</i></p>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/patch')">Patch Morph</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch')">Patch Morph</button>
           </div>
         </div>
         <details class="collapse bg-base-100 border-base-300 border">
           <summary class="collapse-title font-semibold">Show Code</summary>
-          <div class="collapse-content text-sm" data-on-load="@get('/code/2')">
+          <div class="collapse-content text-sm" data-init="@get('/code/2')">
             <div id='code-2' class='mockup-code w-full'></div>
           </div>
         </details>
@@ -106,7 +105,7 @@
           <p>Select Morph Options</p>
           <div class="grid-cols-2">
             <div>
-              <select data-bind-morph>
+              <select data-bind:morph>
                 <option value="replace">Replace</option>
                 <option value="prepend">Prepend Child</option>
                 <option value="append">Append Child</option>
@@ -117,12 +116,12 @@
             </div>
           </div>
           <div class="justify-end card-actions">
-            <button class="btn btn-warning" data-on-click="@get('/patch/opts/reset')">Reset</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/opts')">Patch With Options</button>
+            <button class="btn btn-warning" data-on:click="@get('/patch/opts/reset')">Reset</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/opts')">Patch With Options</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/3')">
+            <div class="collapse-content text-sm" data-init="@get('/code/3')">
               <div id='code-3' class='mockup-code w-full'></div>
             </div>
           </details>
@@ -135,14 +134,15 @@
           <h2 class="card-title">(4) Patch Signals using JSON</h2>
           <p class="border-1">Click the button to use JSON to update the signals on the
             card</p>
-          <input type="text" placeholder="fooj" data-bind-fooj />
-          <input type="text" placeholder="barj" data-bind-barj />
+          <input type="text" placeholder="fooj" data-bind:fooj />
+          <input type="text" placeholder="barj" data-bind:barj />
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/patch/json')">JSON Update</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/json')">JSON Update</button>
           </div>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/4')">
+            <div class="collapse-content text-sm" data-init="@get('/code/4')">
               <div id='code-4' class='mockup-code w-full'></div>
             </div>
           </details>
@@ -155,14 +155,15 @@
           <h2 class="card-title">(5) Patch Signals using SSE</h2>
           <p class="border-1">Click the button to use PatchSignals to update the signals on the
             card</p>
-          <input type="text" placeholder="foo" data-bind-foo />
-          <input type="text" placeholder="bar" data-bind-bar />
+          <input type="text" placeholder="foo" data-bind:foo />
+          <input type="text" placeholder="bar" data-bind:bar />
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals')">Patch Signals</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals')">Patch Signals</button>
           </div>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/5')">
+            <div class="collapse-content text-sm" data-init="@get('/code/5')">
               <div id='code-5' class='mockup-code w-full'></div>
             </div>
           </details>
@@ -174,17 +175,16 @@
         <div class="card-body">
           <h2 class="card-title">(6) Patch Signals using SSE - only if missing</h2>
           <p class="border-1">Click the button to use PatchSignals to update the signals on the
-            card, but only ones that are missing. so initially thats just 'new_foo' and new_bar', then nothing updates
-            after
-            that</p>
-          <code class="border-1 bg-gray-400" data-json-signals></code>
+            card, but only ones that are missing. so initially thats just 'newfoo' and 'newbar', then nothing updates
+            after that. You can go to test 7 to explicitly remove these signals to test this.</p>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/onlymissing')">Patch Signals if
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/onlymissing')">Patch Signals if
               Missing</button>
           </div>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/6')">
+            <div class="collapse-content text-sm" data-init="@get('/code/6')">
               <div id='code-6' class='mockup-code w-full'></div>
             </div>
           </details>
@@ -195,31 +195,31 @@
       <div class="card w-8/12 bg-slate-300 card-lg shadow-sm m-auto">
         <div class=" card-body">
           <h2 class="card-title">(7) Patch Signals using SSE - Remove</h2>
-          <p class="border-1">Click the button to use PatchSignals to remove the signals called '$foo' and '$bar' </p>
-          <p class="bg-red-400 rounded-md" data-class-hidden="!$foo">~I only show if $foo exists~</p>
-          <p class="bg-yellow-400 rounded-md" data-class-hidden="!$bar">~I only show if $bar exists~</p>
-          <p class="bg-green-400 rounded-md" data-class-hidden="!$fooj">~I only show if $fooj exists~</p>
-          <p class="bg-blue-400 rounded-md" data-class-hidden="!$barj">~I only show if $barj exists~</p>
+          <p class="border-1">Click the button to use PatchSignals to remove signals</p>
+          <code class="border-1 bg-gray-400" data-json-signals></code>
+          <p class="border-1">WARNING - with the current design of D*, deleting signals will break all bindings and
+            references to the deleted signal.<br>You will see this effect on the other patchSignals screens after
+            deleting any signal.</p>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/foo')">Remove Signal
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/foo')">Remove Signal
               'foo'</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/bar')">Remove Signal
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/bar')">Remove Signal
               'bar'</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/fooj')">Remove Signal
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/fooj')">Remove Signal
               'fooj'</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/barj')">Remove Signal
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/barj')">Remove Signal
               'barj'</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/new_foo')">Remove Signal
-              'new_foo'</button>
-            <button class="btn btn-primary" data-on-click="@get('/patch/signals/remove/new_bar')">Remove Signal
-              'new_bar'</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/newfoo')">Remove Signal
+              'newfoo'</button>
+            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/newbar')">Remove Signal
+              'newbar'</button>
             <button class="btn btn-primary"
-              data-on-click="@get('/patch/signals/remove/foo,bar,fooj,barj,new_foo,new_bar')">Remove All
+              data-on:click="@get('/patch/signals/remove/foo,bar,fooj,barj,newfoo,newbar')">Remove All
               Signals</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/7')">
+            <div class="collapse-content text-sm" data-init="@get('/code/7')">
               <div id='code-7' class='mockup-code w-full'></div>
             </div>
           </details>
@@ -234,23 +234,23 @@
           </p>
           <code class="border-1 bg-gray-400">console.log('Running from executescript!');</code>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/executescript/1')">Execute Script</button>
+            <button class="btn btn-primary" data-on:click="@get('/executescript/1')">Execute Script</button>
           </div>
           <code class="border-1 bg-gray-400">
             parent = document.querySelector('#execute-script-page');
             console.log(parent.outerHTML);
           </code>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on-click="@get('/executescript/2')">Execute Script using
+            <button class="btn btn-primary" data-on:click="@get('/executescript/2')">Execute Script using
               Writer</button>
           </div>
           <div class="justify-end card-actions">
-            <button class="btn btn-warning" data-on-click="@get('/executescript/3')">Execute Script using formatted
+            <button class="btn btn-warning" data-on:click="@get('/executescript/3')">Execute Script using formatted
               print</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
-            <div class="collapse-content text-sm" data-on-load="@get('/code/8')">
+            <div class="collapse-content text-sm" data-init="@get('/code/8')">
               <div id='code-8' class='mockup-code w-full'></div>
             </div>
           </details>

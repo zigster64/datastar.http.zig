@@ -22,10 +22,10 @@ const Cat = struct {
             \\      </div>
             \\    </div>
             \\    <label class="input">$ 
-            \\      <input type="number" placeholder="Bid" class="grow" data-bind-bids.{[id]} />
+            \\      <input type="number" placeholder="Bid" class="grow" data-bind:bids.{[id]} />
             \\    </label>
             \\    <div class="justify-end card-actions">
-            \\      <button class="btn btn-primary" data-on-click="@post('/bid/{[id]}')">Place Bid</button>
+            \\      <button class="btn btn-primary" data-on:click="@post('/bid/{[id]}', {{filterSignals: {{include: '^bids$'}}}})">Place Bid</button>
             \\    </div>
             \\  </div>
             \\</div>
@@ -96,8 +96,14 @@ pub const App = struct {
         return s;
     }
 
-    pub fn enableSubscriptions(app: *App) !void {
-        app.subscribers = try datastar.Subscribers(*App).init(app.gpa, app);
+    pub fn ensureSession(app: *App, session_id: []const u8) !void {
+        app.mutex.lock();
+        defer app.mutex.unlock();
+
+        if (app.sessions.get(session_id) == null) {
+            try app.sessions.put(try app.gpa.dupe(u8, session_id), .{});
+            std.debug.print("Had to add session {s} to my sessions list, because the client says its there, but I dont know about it\n", .{session_id});
+        }
     }
 
     pub fn deinit(app: *App) void {
@@ -197,6 +203,27 @@ pub const App = struct {
         );
 
         try sse.flush();
+    }
+
+    pub fn publishPrefs(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {
+        const t1 = std.time.microTimestamp();
+        defer {
+            const t2 = std.time.microTimestamp();
+            logz.info().string("event", "publishPrefs").int("stream", stream.handle).string("session", session orelse "null").int("elapsed (μs)", t2 - t1).log();
+        }
+
+        // just get the session prefs for the given session, and broadcast them to all
+        // clients sharing this same session ID, to keep them in sync
+        if (session) |s| {
+            if (app.sessions.get(s)) |prefs| {
+                var buffer: [32]u8 = undefined;
+                var sse = datastar.NewSSEFromStream(stream, &buffer);
+
+                try sse.patchSignals(.{
+                    .sort = @tagName(prefs.sort),
+                }, .{}, .{});
+            }
+        }
     }
 };
 

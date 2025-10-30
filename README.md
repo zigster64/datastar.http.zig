@@ -8,18 +8,27 @@ https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
 
 This SDK uses streams all the way down, so there is no implicit extra allocations.
 
-Current version is based on Zig 0.15.2, and uses the latest master of http.zig
+Versions :
+- Datastar 1.0.0-RC6
+- Zig 0.15.2
+- http.zig latest master
 
-It uses the latest "writergate" changes, and makes good use of the high speed buffered 
+It uses the latest "writergate" changes for zig 0.15.2, and makes good use of the high speed buffered 
 interfaces. The SDK is very fast, and very lightweight.
 
 Whilst this is built for http.zig, it should work as well with jetzig / tokamak, etc
 as they use http.zig under the hood.
 
-Future updates to this repo will include support for Zig stdlib http server, as well as 
-other popular HTTP server libs, such as zzz and tardy, and zap.
+# Future Updates
 
-Future updates will provide example apps that demonstrate using jetzig and tokamak as well.
+Future updates to this repo will include support for Zig stdlib http server, as well as 
+other popular HTTP server libs, such as zzz, zio, and zap.
+
+Will provide example apps that demonstrate using this SDK with each of these frameworks 
+as they get ported.
+
+Once this lib is fully generic across multiple frameworks, I will rename it to `datastar.zig` to reflect that.
+
 
 # Audience and Scope
 
@@ -752,16 +761,3 @@ its subscriber list.
 Likewise when a user re-connects, this is just seen as a new connection, and they are appended to the list
 of subscribers by stream and topic.  On subscription, the system will do some sanity checks to ensure
 that connections cannot have multiple subscriptions to the same topic.
-
-# LLM Policy
-
-Personal Opinion - Avoid LLM like the plague please.
-
-Dont know about you, but im at leasnt 2x more productive with every AI tool disabled in my IDE.
-My editor is just way faster that way, and I think so much clearer without the constant "suggestions".
-
-By all means use it for rubber ducking outside of coding, but dont trust any code it produces, especially with Zig latest, let alone Datastar latest.
-
-Its just not there yet (even if it looks convincing sometimes)
-
-Please keep this in mind if submitting PRs as well.
