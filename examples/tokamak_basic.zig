@@ -204,17 +204,27 @@ fn patchElementsOptsReset(req: *tk.Request, res: *tk.Response) !void {
     });
 }
 
-fn jsonSignals(_: *tk.Request, res: *tk.Response) !void {
+const FoojBarjResponse = struct {
+    fooj: u8,
+    barj: u8,
+};
+
+fn jsonSignals() !FoojBarjResponse {
     const t1 = std.time.microTimestamp();
 
     // this will set the following signals, by just outputting a JSON response rather than an SSE response
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
 
-    try res.json(.{ .fooj = foo, .barj = bar }, .{});
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "patchSignals").int("fooj", foo).int("barj", bar).int("elapsed (μs)", t2 - t1).log();
+    }
 
-    const t2 = std.time.microTimestamp();
-    logz.info().string("event", "patchSignals").int("fooj", foo).int("barj", bar).int("elapsed (μs)", t2 - t1).log();
+    return .{
+        .fooj = foo,
+        .barj = bar,
+    };
 }
 
 fn patchSignals(req: *tk.Request, res: *tk.Response) !void {
