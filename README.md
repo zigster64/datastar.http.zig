@@ -11,13 +11,14 @@ This SDK uses streams all the way down, so there is no implicit extra allocation
 Versions :
 - Datastar 1.0.0-RC6
 - Zig 0.15.2
-- http.zig latest master
 
 It uses the latest "writergate" changes for zig 0.15.2, and makes good use of the high speed buffered 
 interfaces. The SDK is very fast, and very lightweight.
 
-Whilst this is built for http.zig, it should work as well with jetzig / tokamak, etc
-as they use http.zig under the hood.
+Example apps provided with
+- http.zig
+- tokamak
+- (more to follow)
 
 # Future Updates
 
