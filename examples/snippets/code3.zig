@@ -27,7 +27,7 @@ if (patch_mode == .outer or patch_mode == .inner) {
     return; // dont do morphs - its not relevant to this demo card
 }
 
-var w = sse.patchElements(.{
+var w = sse.patchElementsWriter(.{
     .selector = "#mf-patch-opts",
     .mode = patch_mode,
 });
