@@ -77,12 +77,12 @@ pub fn main() !void {
     try server.start();
 }
 
-fn index(_: *tk.Request, res: *tk.Response) !void {
+fn index(res: *tk.Response) !void {
     res.body = @embedFile("01_index.html");
 }
 
 // Output a normal text/html response, and have it automatically patch the DOM
-fn textHTML(_: *tk.Request, res: *tk.Response) !void {
+fn textHTML(res: *tk.Response) !void {
     const t1 = std.time.microTimestamp();
     defer {
         const t2 = std.time.microTimestamp();
