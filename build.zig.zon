@@ -15,6 +15,10 @@
             .url = "git+https://github.com/karlseguin/log.zig?ref=master#cc5268932e84da9dad09fd48b544d67212889c02",
             .hash = "logz-0.0.0-O9YWXrJKAgBA98lbuTKXADVOR1ULzRGLMzrj1dkduNAF",
         },
+        .tokamak = .{
+            .url = "git+https://github.com/cztomsik/tokamak?ref=main#a8010432a642298461e98c7d90d737247feeaeb5",
+            .hash = "tokamak-2.0.0-FbnSeVOmBgC_0KOptR5fHV4GBxw1zqdx9ZqFzVUTl22W",
+        },
     },
     .paths = .{
         "build.zig",

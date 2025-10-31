@@ -14,7 +14,10 @@ pub fn build(b: *std.Build) void {
     });
 
     const httpz_module = b.dependency("httpz", dep_opts);
-    datastar_httpz_module.addImport("httpz", httpz_module.module("httpz"));
+    const tokamak_module = b.dependency("tokamak", dep_opts);
+    const logz_module = b.dependency("logz", dep_opts);
+
+    // datastar_httpz_module.addImport("httpz", httpz_module.module("httpz"));
 
     const tests = b.addTest(.{
         .root_module = b.createModule(.{
@@ -40,6 +43,7 @@ pub fn build(b: *std.Build) void {
         .{ .file = "examples/02_petshop.zig", .name = "example_2" },
         .{ .file = "examples/022_petshop.zig", .name = "example_22" },
         .{ .file = "examples/05_garden.zig", .name = "example_5" },
+        .{ .file = "examples/tokamak_basic.zig", .name = "tokamak_basic" },
     };
 
     {
@@ -56,8 +60,7 @@ pub fn build(b: *std.Build) void {
 
             // add some 3rd party deps to get the app working
             exe.root_module.addImport("httpz", httpz_module.module("httpz"));
-
-            const logz_module = b.dependency("logz", dep_opts);
+            exe.root_module.addImport("tokamak", tokamak_module.module("tokamak"));
             exe.root_module.addImport("logz", logz_module.module("logz"));
 
             b.installArtifact(exe);
