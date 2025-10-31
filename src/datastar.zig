@@ -627,18 +627,13 @@ pub fn Subscribers(comptime T: type) type {
                 var i: usize = subs.items.len;
                 while (i > 0) {
                     i -= 1;
-                    var sub = subs.items[i];
+                    const sub = subs.items[i];
                     if (sub.session == null) {
                         // we publish everything, without passing a session value
                         // std.debug.print("calling the publish callback for topic {s} on stream {d}\n", .{ topic, sub.stream.handle });
                         @call(.auto, sub.action, .{ self.app, sub.stream, null }) catch |err| {
-                            switch (err) {
-                                error.NotOpenForWriting => {},
-                                else => {
-                                    sub.stream.close();
-                                },
-                            }
                             try dead_streams.append(self.gpa, sub.stream);
+                            std.debug.print(" 💀 Stream {d} to be removed because {}\n", .{ sub.stream.handle, err });
                         };
                     } else {
                         if (session) |sv| {
@@ -647,14 +642,9 @@ pub fn Subscribers(comptime T: type) type {
                                 if (std.mem.eql(u8, sv, ss)) {
                                     // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {s}\n", .{ topic, sub.stream.handle, ss });
                                     @call(.auto, sub.action, .{ self.app, sub.stream, ss }) catch |err| {
-                                        switch (err) {
-                                            error.NotOpenForWriting => {},
-                                            else => {
-                                                sub.stream.close();
-                                            },
-                                        }
                                         if (sub.session) |subsession| self.gpa.free(subsession);
                                         try dead_streams.append(self.gpa, sub.stream);
+                                        std.debug.print(" 💀 Stream {d} to be removed because {}\n", .{ sub.stream.handle, err });
                                     };
                                 }
                             }
@@ -662,14 +652,9 @@ pub fn Subscribers(comptime T: type) type {
                             // publish all
                             // std.debug.print("calling the publish callback for topic {s} on stream {d} with session {?s}\n", .{ topic, sub.stream.handle, sub.session });
                             @call(.auto, sub.action, .{ self.app, sub.stream, sub.session }) catch |err| {
-                                switch (err) {
-                                    error.NotOpenForWriting => {},
-                                    else => {
-                                        sub.stream.close();
-                                    },
-                                }
                                 if (sub.session) |subsession| self.gpa.free(subsession);
                                 try dead_streams.append(self.gpa, sub.stream);
+                                std.debug.print(" 💀 Stream {d} to be removed because {}\n", .{ sub.stream.handle, err });
                             };
                         }
                     }

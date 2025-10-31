@@ -62,7 +62,6 @@ fn index(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var session_id: usize = 0;
 
     var cookies = req.cookies();
-    std.debug.print("index cookies {any}\n", .{cookies});
     if (cookies.get("session")) |session_cookie| {
         session_id = std.fmt.parseInt(usize, session_cookie, 10) catch 0;
         logz.info().string("existing session", session_cookie).int("numeric_value", session_id).log();
