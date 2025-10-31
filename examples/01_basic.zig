@@ -102,10 +102,6 @@ fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
 
 // create a patchElements stream, which will write commands over the SSE connection
 // to update parts of the DOM. It will look for the DOM with the matching ID in the default case
-//
-// NOTE - once we have created a DataStar 'Message' of whatever type, we then get a writer
-// from it, and from there we can freely print to to.  The writer will auto-inject all the
-// protocol parts to split it into lines and describe each element by magic.
 fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     defer {
