@@ -87,6 +87,8 @@ section that displays the code to use on your backend to drive the page you are 
 
 ![Screenshot of example_1](./docs/images/example_1.png)
 
+`./zig-out/bin/tokamak_basic` - Same application, but using Tokamak instead of directly using http.zig
+
 ---
 
 To run the additional example apps, try
@@ -156,7 +158,21 @@ Using http.zig :
 
 - example_5  shows an example multi-player Gardening Simulator using pub/sub
 
-Using zig stdlib http server :
+Using Tokamak :
+
+- tokamak_basic  shows using the Datastar API using basic SDK handlers (same as example_1, but with Tokamak)
+
+<!-- Using zig stdlib http server : -->
+
+TODO :
+
+- Jetzig examples
+- Zig stdlib examples
+- Zio+stdlib examples
+- zzz examples
+- zap examples
+- backstage (actor framework) examples
+
 
 <!-- - example_10 as per example_1, but using zig stdlib instead of http.zig -->
 
