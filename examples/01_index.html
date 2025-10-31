@@ -198,24 +198,15 @@
           <p class="border-1">Click the button to use PatchSignals to remove signals</p>
           <code class="border-1 bg-gray-400" data-json-signals></code>
           <p class="border-1">WARNING - with the current design of D*, deleting signals will break all bindings and
-            references to the deleted signal.<br>You will see this effect on the other patchSignals screens after
-            deleting any signal.</p>
+            references to the deleted signal.
+            <br>So only delete signals if you also patch the DOM to remove referenced signals
+            <br>Otherwise, consider setting the signal to '' if you just want to blank the value out
+          </p>
           <div class="justify-end card-actions">
-            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/foo')">Remove Signal
-              'foo'</button>
-            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/bar')">Remove Signal
-              'bar'</button>
-            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/fooj')">Remove Signal
-              'fooj'</button>
-            <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/barj')">Remove Signal
-              'barj'</button>
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/newfoo')">Remove Signal
               'newfoo'</button>
             <button class="btn btn-primary" data-on:click="@get('/patch/signals/remove/newbar')">Remove Signal
               'newbar'</button>
-            <button class="btn btn-primary"
-              data-on:click="@get('/patch/signals/remove/foo,bar,fooj,barj,newfoo,newbar')">Remove All
-              Signals</button>
           </div>
           <details class="collapse bg-base-100 border-base-300 border">
             <summary class="collapse-title font-semibold">Show Code</summary>
