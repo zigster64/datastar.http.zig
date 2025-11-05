@@ -96,29 +96,19 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    var sse = try datastar.NewSSE(req, res);
-    // DO NOT close - this stream stays open forever
-    // and gets subscribed to "cats" update events
-
     var cookies = req.cookies();
     if (cookies.get("session")) |session| {
+        // validated session
+        const sse = try datastar.NewSSE(req, res);
         try app.subscribeSession("cats", sse.stream, App.publishCatList, session);
         try app.subscribeSession("prefs", sse.stream, App.publishPrefs, session);
     } else {
-        try app.subscribe("cats", sse.stream, App.publishCatList);
-
-        // They are new around here - so ensure that their sort prefs are reset to just ID
-        //
-        // So they are either genuinely new, OR the cookie for the session has been removed
-        // and the page is just a refresh
-        //
-        // Edge cases on iphone where the session cookie is cleaned up by ITP
-        // or the user has deliberately deleted their session cookie
-        // This at least gets the screen into a good state
-        try sse.patchSignals(.{
-            .sort = "id",
-        }, .{}, .{});
-        std.debug.print("cant find session cookie ???\n", .{});
+        std.debug.print("cant find session cookie - redirect to new login\n", .{});
+        // no valid session - create a new one
+        // redirect them to /
+        var sse = try datastar.NewSSE(req, res);
+        defer sse.close();
+        try sse.executeScript("window.location='/'", .{});
     }
 }
 
