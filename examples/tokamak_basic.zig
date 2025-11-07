@@ -72,65 +72,12 @@ const App = struct {
     }
 };
 
-pub fn main() !void {
-    try tk.app.run(tk.Server.start, &.{ Config, App });
-}
-
 // This example demonstrates basic DataStar operations
 // PatchElements / PatchSignals
+// Using the tokamak framework
 
-pub fn main_old() !void {
-    var gpa = std.heap.DebugAllocator(.{}).init;
-    const allocator = gpa.allocator();
-
-    const routes: []const tk.Route = &.{
-        .get("/", index),
-        .get("/text-html", textHTML),
-        .get("/patch", patchElements),
-        .get("/patch/opts", patchElementsOpts),
-        .get("/patch/opts/reset", patchElementsOptsReset),
-        .get("/patch/json", jsonSignals),
-        .get("/patch/signals", patchSignals),
-        .get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing),
-        .get("/patch/signals/remove/:names", patchSignalsRemove),
-        .get("/executescript/:sample", executeScript),
-        .get("/code/:snip", code),
-    };
-
-    var server = try tk.Server.init(
-        allocator,
-        routes,
-        .{
-            .listen = .{
-                .port = PORT,
-                .hostname = "0.0.0.0",
-            },
-        },
-    );
-
-    defer {
-        // clean shutdown
-        server.stop();
-        server.deinit();
-    }
-
-    // initialize a logging pool
-    try logz.setup(allocator, .{
-        .level = .Info,
-        .pool_size = 100,
-        .buffer_size = 4096,
-        .large_buffer_count = 8,
-        .large_buffer_size = 16384,
-        .output = .stdout,
-        .encoding = .logfmt,
-    });
-    defer logz.deinit();
-
-    datastar.configure(.{ .buffer_size = 255 });
-
-    std.debug.print("listening http://localhost:{d}/\n", .{PORT});
-    std.debug.print("... or any other IP address pointing to this machine\n", .{});
-    try server.start();
+pub fn main() !void {
+    try tk.app.run(tk.Server.start, &.{ Config, App });
 }
 
 fn index(res: *tk.Response) !void {
