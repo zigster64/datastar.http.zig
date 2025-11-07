@@ -20,10 +20,66 @@ fn getCountAndIncrement() usize {
     return update_count;
 }
 
+const Config = struct {
+    logz: logz.Config = .{
+        .level = .Info,
+        .pool_size = 100,
+        .buffer_size = 4096,
+        .large_buffer_count = 8,
+        .large_buffer_size = 16384,
+        .output = .stdout,
+        .encoding = .logfmt,
+    },
+
+    server: tk.ServerOptions = .{
+        .listen = .{
+            .port = PORT,
+            .hostname = "0.0.0.0",
+        },
+    },
+
+    datastar: datastar.Config = .{
+        .buffer_size = 255,
+    },
+};
+
+const App = struct {
+    server: tk.Server,
+    routes: []const tk.Route = &.{
+        .get("/", index),
+        .get("/text-html", textHTML),
+        .get("/patch", patchElements),
+        .get("/patch/opts", patchElementsOpts),
+        .get("/patch/opts/reset", patchElementsOptsReset),
+        .get("/patch/json", jsonSignals),
+        .get("/patch/signals", patchSignals),
+        .get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing),
+        .get("/patch/signals/remove/:names", patchSignalsRemove),
+        .get("/executescript/:sample", executeScript),
+        .get("/code/:snip", code),
+    },
+
+    pub fn configure(bundle: *tk.Bundle) void {
+        bundle.addInitHook(logz.setup);
+        bundle.addDeinitHook(logz.deinit);
+        bundle.addInitHook(datastar.configure);
+        bundle.addInitHook(printAddress);
+    }
+
+    fn printAddress(server: *tk.Server) void {
+        std.debug.print("listening http://localhost:{d}/\n", .{server.http.config.port.?});
+        std.debug.print("... or any other IP address pointing to this machine\n", .{});
+    }
+};
+
+pub fn main() !void {
+    try tk.app.run(tk.Server.start, &.{ Config, App });
+}
+
 // This example demonstrates basic DataStar operations
 // PatchElements / PatchSignals
 
-pub fn main() !void {
+pub fn main_old() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
 
@@ -344,7 +400,7 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code2.zig"),
     @embedFile("snippets/code3.zig"),
     @embedFile("snippets/code4.zig"),
-    @embedFile("snippets/code5.zig"),
+    @embedFile("snippets/code5t.zig"),
     @embedFile("snippets/code6.zig"),
     @embedFile("snippets/code7.zig"),
     @embedFile("snippets/code8.zig"),

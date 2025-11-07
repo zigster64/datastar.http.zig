@@ -38,7 +38,7 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
-const Config = struct {
+pub const Config = struct {
     buffer_size: usize = 0,
     // ... other config options can be added here
 };
