@@ -233,7 +233,7 @@ sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
 // create SSE with custom buffer
 var sse = NewSSEBuffered(req, res, buffer) !SSE 
 // create an SSE object from an existing open connection
-var sse = NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+var sse = NewSSEFromStream(gpa: std.mem.Allocator, stream: std.net.Stream, buffer: []u8) SSE
 // fine tune internal IO buffering / other configuration
 datastar.configure(.{ .buffer_size = 255 });
 
@@ -712,7 +712,7 @@ Use this function, which takes an existing open std.net.Stream, and an optional 
 
 
 ```zig
-    pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+    pub fn NewSSEFromStream(std.net.Stream, buffer: []u8) SSE
 ```
 
 If using this method, you MUST use `sse.flush()` when you are finished.

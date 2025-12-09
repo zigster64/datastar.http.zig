@@ -338,7 +338,118 @@ pub const Message = struct {
         return w.consume(written);
     }
 
-    fn writeBytes(self: *Message, sw: *std.Io.Writer, bytes: []const u8) std.Io.Writer.Error!usize {
+    fn writeBytes(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
+        var buf: [4096]u8 = undefined;
+        var buf_pos: usize = 0;
+
+        const prefix = switch (self.command) {
+            .patchElements, .executeScript => "data: elements ",
+            .patchSignals => "data: signals ",
+        };
+
+        var index: usize = 0;
+
+        while (index < bytes.len) {
+            const next_nl = std.mem.indexOfScalarPos(u8, bytes, index, '\n');
+            const buf_end = next_nl orelse bytes.len;
+            const slice = bytes[index..buf_end];
+
+            // -- BUFFERING LOGIC --
+
+            // 1. Prefix
+            if (!self.line_in_progress) {
+                if (buf_pos + prefix.len > buf.len) {
+                    try stream_writer.writeAll(buf[0..buf_pos]);
+                    buf_pos = 0;
+                }
+                @memcpy(buf[buf_pos..][0..prefix.len], prefix);
+                buf_pos += prefix.len;
+            }
+
+            // 2. Slice Content
+            var slice_idx: usize = 0;
+            while (slice_idx < slice.len) {
+                const space = buf.len - buf_pos;
+                const to_copy = @min(space, slice.len - slice_idx);
+
+                @memcpy(buf[buf_pos..][0..to_copy], slice[slice_idx..][0..to_copy]);
+                buf_pos += to_copy;
+                slice_idx += to_copy;
+
+                if (buf_pos == buf.len) {
+                    try stream_writer.writeAll(&buf);
+                    buf_pos = 0;
+                }
+            }
+
+            // 3. Newline
+            if (next_nl) |_| {
+                if (buf_pos == buf.len) {
+                    try stream_writer.writeAll(&buf);
+                    buf_pos = 0;
+                }
+                buf[buf_pos] = '\n';
+                buf_pos += 1;
+
+                self.line_in_progress = false;
+                index = buf_end + 1;
+            } else {
+                self.line_in_progress = true;
+                index = buf_end;
+            }
+        }
+
+        // Flush remaining
+        if (buf_pos > 0) {
+            try stream_writer.writeAll(buf[0..buf_pos]);
+        }
+
+        return bytes.len;
+    }
+
+    fn writeBytesAllocating(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
+        const t1 = std.time.microTimestamp();
+        defer std.debug.print("drain SSE with {} bytes took {}us\n", .{ bytes.len, std.time.microTimestamp() - t1 });
+
+        var allocating: std.Io.Writer.Allocating = .init(self.allocator);
+        var w = allocating.writer;
+        defer allocating.deinit();
+
+        const prefix = switch (self.command) {
+            .patchElements, .executeScript => "data: elements ",
+            .patchSignals => "data: signals ",
+        };
+
+        var index: usize = 0;
+
+        // 2. The Loop (Your logic was correct, just needed the buffered writer)
+        while (index < bytes.len) {
+            // SIMD scan for newline
+            const next_nl = std.mem.indexOfScalarPos(u8, bytes, index, '\n');
+            const buf_end = next_nl orelse bytes.len;
+            const slice = bytes[index..buf_end];
+
+            if (!self.line_in_progress) {
+                try w.writeAll(prefix);
+            }
+
+            try w.writeAll(slice);
+
+            if (next_nl) |_| {
+                try w.writeByte('\n');
+                self.line_in_progress = false;
+                index = buf_end + 1;
+            } else {
+                self.line_in_progress = true;
+                index = buf_end;
+            }
+        }
+
+        try stream_writer.writeAll(w.buffered());
+        return bytes.len;
+    }
+
+    fn writeBytesOld(self: *Message, sw: *std.Io.Writer, bytes: []const u8) std.Io.Writer.Error!usize {
         var start: usize = 0;
         for (bytes, 0..) |b, i| {
             if (b == '\n') {
