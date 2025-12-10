@@ -338,8 +338,12 @@ pub const Message = struct {
         return w.consume(written);
     }
 
+    // WIP - make writeBytes buffer up output before hitting http.zig - is much much faster, but Im not
+    // 100% sure about the implementation yet.
+    // This works, but I think it can be better using an Io.Writer to wrap the underlying stream
+    const WRITE_BUFFER_SIZE = 16 * 1024;
     fn writeBytes(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
-        var buf: [4096]u8 = undefined;
+        var buf: [WRITE_BUFFER_SIZE]u8 = undefined;
         var buf_pos: usize = 0;
 
         const prefix = switch (self.command) {
@@ -354,9 +358,6 @@ pub const Message = struct {
             const buf_end = next_nl orelse bytes.len;
             const slice = bytes[index..buf_end];
 
-            // -- BUFFERING LOGIC --
-
-            // 1. Prefix
             if (!self.line_in_progress) {
                 if (buf_pos + prefix.len > buf.len) {
                     try stream_writer.writeAll(buf[0..buf_pos]);
@@ -366,7 +367,6 @@ pub const Message = struct {
                 buf_pos += prefix.len;
             }
 
-            // 2. Slice Content
             var slice_idx: usize = 0;
             while (slice_idx < slice.len) {
                 const space = buf.len - buf_pos;
@@ -382,7 +382,6 @@ pub const Message = struct {
                 }
             }
 
-            // 3. Newline
             if (next_nl) |_| {
                 if (buf_pos == buf.len) {
                     try stream_writer.writeAll(&buf);
@@ -399,7 +398,6 @@ pub const Message = struct {
             }
         }
 
-        // Flush remaining
         if (buf_pos > 0) {
             try stream_writer.writeAll(buf[0..buf_pos]);
         }
@@ -407,48 +405,7 @@ pub const Message = struct {
         return bytes.len;
     }
 
-    fn writeBytesAllocating(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
-        const t1 = std.time.microTimestamp();
-        defer std.debug.print("drain SSE with {} bytes took {}us\n", .{ bytes.len, std.time.microTimestamp() - t1 });
-
-        var allocating: std.Io.Writer.Allocating = .init(self.allocator);
-        var w = allocating.writer;
-        defer allocating.deinit();
-
-        const prefix = switch (self.command) {
-            .patchElements, .executeScript => "data: elements ",
-            .patchSignals => "data: signals ",
-        };
-
-        var index: usize = 0;
-
-        // 2. The Loop (Your logic was correct, just needed the buffered writer)
-        while (index < bytes.len) {
-            // SIMD scan for newline
-            const next_nl = std.mem.indexOfScalarPos(u8, bytes, index, '\n');
-            const buf_end = next_nl orelse bytes.len;
-            const slice = bytes[index..buf_end];
-
-            if (!self.line_in_progress) {
-                try w.writeAll(prefix);
-            }
-
-            try w.writeAll(slice);
-
-            if (next_nl) |_| {
-                try w.writeByte('\n');
-                self.line_in_progress = false;
-                index = buf_end + 1;
-            } else {
-                self.line_in_progress = true;
-                index = buf_end;
-            }
-        }
-
-        try stream_writer.writeAll(w.buffered());
-        return bytes.len;
-    }
-
+    // Keeping this func here for reference - the old way is a correct algo, but not at all efficient
     fn writeBytesOld(self: *Message, sw: *std.Io.Writer, bytes: []const u8) std.Io.Writer.Error!usize {
         var start: usize = 0;
         for (bytes, 0..) |b, i| {
