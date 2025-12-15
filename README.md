@@ -706,16 +706,16 @@ All callback functions will provide this existing open stream as a parameter.
 
 You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
 
-Use this function, which takes an existing open std.net.Stream, and an optional buffer to use for writes.
+Use this function, which takes an existing open std.net.Stream, and an optional input_buffer to use for writes, and an output_buffer for writing to the stream.
 
 (ie - you can set it to the empty buffer &.{} for an unbuffered writer).
 
 
 ```zig
-    pub fn NewSSEFromStream(std.net.Stream, buffer: []u8) SSE
+    pub fn NewSSEFromStream(std.net.Stream, buffer: []u8, output_buffer: []u8) SSE
 ```
 
-If using this method, you MUST use `sse.flush()` when you are finished.
+If using this method, you MUST use `sse.flush()` when you are finished writing all the data.
 
 Simplifed Example, from `examples/02_cats.zig` in the `publishCatList` function :
 
@@ -724,7 +724,8 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
 
     // get an SSE object for the given stream
     var buffer: [1024]u8 = undefined;
-    var sse = datastar.NewSSEFromStream(stream, &buffer);
+    var output_buffer: [1024]u8 = undefined;
+    var sse = try datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
 
     // Set the sse to PatchElements, and return us a writer
     var w = sse.patchElementsWriter(.{});

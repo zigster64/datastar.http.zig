@@ -38,8 +38,10 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
+const DEFAULT_OUTPUT_BUFFER_SIZE = 16 * 1024; // being the upper size of the TLS window, ideal output chunk size
 pub const Config = struct {
     buffer_size: usize = 0,
+    output_buffer_size: usize = DEFAULT_OUTPUT_BUFFER_SIZE,
     // ... other config options can be added here
 };
 
@@ -53,6 +55,8 @@ pub const SSE = struct {
     stream: std.net.Stream = undefined,
     msg: ?Message = null,
     buffer: []u8 = &.{},
+    output_buffer: []u8 = &.{},
+    allocator: ?std.mem.Allocator = null,
 
     /// use close() to flush out the data to the SSE connection, then close the connection
     pub fn close(self: *SSE) void {
@@ -74,7 +78,7 @@ pub const SSE = struct {
 
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt, self.buffer);
+        var msg = Message.init(self.stream, .patchElements, opt, self.buffer, &self.output_buffer);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
@@ -83,7 +87,7 @@ pub const SSE = struct {
 
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt, self.buffer);
+        var msg = Message.init(self.stream, .patchElements, opt, self.buffer, &self.output_buffer);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
@@ -94,14 +98,14 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchElements, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchElements, opt, self.buffer);
+            self.msg = Message.init(self.stream, .patchElements, opt, self.buffer, &self.output_buffer);
         }
         return &self.msg.?.interface;
     }
 
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchSignals, opt, self.buffer);
+        var msg = Message.init(self.stream, .patchSignals, opt, self.buffer, &self.output_buffer);
         try msg.header();
 
         const json_formatter = std.json.fmt(value, json_opt);
@@ -113,14 +117,14 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchSignals, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchSignals, opt, self.buffer);
+            self.msg = Message.init(self.stream, .patchSignals, opt, self.buffer, &self.output_buffer);
         }
         return &self.msg.?.interface;
     }
 
     pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt, self.buffer);
+        var msg = Message.init(self.stream, .executeScript, opt, self.buffer, &self.output_buffer);
         var w = &msg.interface;
         try msg.header();
         try w.writeAll(script);
@@ -129,7 +133,7 @@ pub const SSE = struct {
 
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt, self.buffer);
+        var msg = Message.init(self.stream, .executeScript, opt, self.buffer, &self.output_buffer);
         var w = &msg.interface;
         try msg.header();
         try w.print(script, args);
@@ -140,7 +144,7 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.executeScript, opt);
         } else {
-            self.msg = Message.init(self.stream, .executeScript, opt, self.buffer);
+            self.msg = Message.init(self.stream, .executeScript, opt, self.buffer, &self.output_buffer);
         }
         return &self.msg.?.interface;
     }
@@ -155,9 +159,9 @@ pub fn NewSSE(req: anytype, res: anytype) !SSE {
             if (config.buffer_size == 0) {
                 break :blk &.{};
             }
-            // std.debug.print("Applying config buffer size of {d}\n", .{config.buffer_size});
             break :blk try res.arena.alloc(u8, config.buffer_size);
         },
+        .output_buffer = try res.arena.alloc(u8, config.output_buffer_size),
     };
 }
 
@@ -167,13 +171,15 @@ pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
     return SSE{
         .stream = stream,
         .buffer = buffer,
+        .output_buffer = try res.arena.alloc(u8, config.output_buffer_size),
     };
 }
 
-pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE {
+pub fn NewSSEFromStream(stream: std.net.Stream, input_buffer: []u8, output_buffer: []u8) !SSE {
     return SSE{
         .stream = stream,
-        .buffer = buffer,
+        .buffer = input_buffer,
+        .output_buffer = output_buffer,
     };
 }
 
@@ -190,10 +196,10 @@ pub const Message = struct {
     line_in_progress: bool = false,
     interface: std.Io.Writer,
 
-    pub fn init(stream: std.net.Stream, comptime command: Command, opt: anytype, buffer: []u8) Message {
+    fn init(stream: std.net.Stream, comptime command: Command, opt: anytype, buffer: []u8, output_buffer: *[]u8) Message {
         var m = Message{
             .stream = stream,
-            .stream_writer = stream.writer(&.{}),
+            .stream_writer = stream.writer(output_buffer.*),
             .command = command,
             .interface = .{
                 .buffer = buffer, // by default is empty, but can be expanded using NewSSEBuffered()
@@ -310,7 +316,6 @@ pub const Message = struct {
                     try w.writeAll(" data-effect=\"el.remove()\"");
                 }
 
-                // TODO - append the array of attribs here
                 try w.writeAll(">");
                 self.line_in_progress = true; // because the script content is appended to the script declaration line !!
             },
@@ -338,122 +343,60 @@ pub const Message = struct {
         return w.consume(written);
     }
 
-    // WIP - make writeBytes buffer up output before hitting http.zig - is much much faster, but Im not
-    // 100% sure about the implementation yet.
-    // This works, but I think it can be better using an Io.Writer to wrap the underlying stream
-    const WRITE_BUFFER_SIZE = 16 * 1024;
-    fn writeBytes(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
-        var buf: [WRITE_BUFFER_SIZE]u8 = undefined;
-        var buf_pos: usize = 0;
-
+    fn writeBytesSplit(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
         const prefix = switch (self.command) {
             .patchElements, .executeScript => "data: elements ",
             .patchSignals => "data: signals ",
         };
 
-        var index: usize = 0;
-
-        while (index < bytes.len) {
-            const next_nl = std.mem.indexOfScalarPos(u8, bytes, index, '\n');
-            const buf_end = next_nl orelse bytes.len;
-            const slice = bytes[index..buf_end];
-
-            if (!self.line_in_progress) {
-                if (buf_pos + prefix.len > buf.len) {
-                    try stream_writer.writeAll(buf[0..buf_pos]);
-                    buf_pos = 0;
-                }
-                @memcpy(buf[buf_pos..][0..prefix.len], prefix);
-                buf_pos += prefix.len;
-            }
-
-            var slice_idx: usize = 0;
-            while (slice_idx < slice.len) {
-                const space = buf.len - buf_pos;
-                const to_copy = @min(space, slice.len - slice_idx);
-
-                @memcpy(buf[buf_pos..][0..to_copy], slice[slice_idx..][0..to_copy]);
-                buf_pos += to_copy;
-                slice_idx += to_copy;
-
-                if (buf_pos == buf.len) {
-                    try stream_writer.writeAll(&buf);
-                    buf_pos = 0;
-                }
-            }
-
-            if (next_nl) |_| {
-                if (buf_pos == buf.len) {
-                    try stream_writer.writeAll(&buf);
-                    buf_pos = 0;
-                }
-                buf[buf_pos] = '\n';
-                buf_pos += 1;
-
+        var lines = std.mem.splitScalar(u8, bytes, '\n');
+        var is_first = true;
+        while (lines.next()) |line| {
+            if (!is_first) {
+                try stream_writer.writeAll("\n");
                 self.line_in_progress = false;
-                index = buf_end + 1;
-            } else {
-                self.line_in_progress = true;
-                index = buf_end;
             }
+            if (!self.line_in_progress) {
+                try stream_writer.writeAll(prefix);
+                self.line_in_progress = true;
+            }
+            try stream_writer.writeAll(line);
+            is_first = false;
         }
-
-        if (buf_pos > 0) {
-            try stream_writer.writeAll(buf[0..buf_pos]);
-        }
+        try stream_writer.writeAll("\n");
 
         return bytes.len;
     }
 
-    // Keeping this func here for reference - the old way is a correct algo, but not at all efficient
-    fn writeBytesOld(self: *Message, sw: *std.Io.Writer, bytes: []const u8) std.Io.Writer.Error!usize {
-        var start: usize = 0;
-        for (bytes, 0..) |b, i| {
-            if (b == '\n') {
-                if (self.line_in_progress) {
-                    try sw.print("{s}\n", .{bytes[start..i]});
-                } else {
-                    switch (self.command) {
-                        .patchElements, .executeScript => {
-                            try sw.print(
-                                "data: elements {s}\n",
-                                .{bytes[start..i]},
-                            );
-                        },
-                        .patchSignals => {
-                            try sw.print(
-                                "data: signals {s}\n",
-                                .{bytes[start..i]},
-                            );
-                        },
-                    }
-                }
-                start = i + 1;
-                self.line_in_progress = false;
+    fn writeBytes(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
+        const prefix = switch (self.command) {
+            .patchElements, .executeScript => "data: elements ",
+            .patchSignals => "data: signals ",
+        };
+
+        var rest = bytes;
+
+        while (std.mem.indexOfScalar(u8, rest, '\n')) |idx| {
+            const line = rest[0..idx];
+
+            // Start a line if we aren't already in one
+            if (!self.line_in_progress) {
+                try stream_writer.writeAll(prefix);
             }
+            try stream_writer.writeAll(line);
+            try stream_writer.writeAll("\n");
+            self.line_in_progress = false;
+
+            // Advance past the newline
+            rest = rest[idx + 1 ..];
         }
 
-        if (start < bytes.len) {
-            if (self.line_in_progress) {
-                try sw.print("{s}", .{bytes[start..]});
-            } else {
-                // is a completely new line
-                switch (self.command) {
-                    .patchElements, .executeScript => {
-                        try sw.print(
-                            "data: elements {s}",
-                            .{bytes[start..]},
-                        );
-                    },
-                    .patchSignals => {
-                        try sw.print(
-                            "data: signals {s}",
-                            .{bytes[start..]},
-                        );
-                    },
-                }
+        if (rest.len > 0) {
+            if (!self.line_in_progress) {
+                try stream_writer.writeAll(prefix);
                 self.line_in_progress = true;
             }
+            try stream_writer.writeAll(rest);
         }
 
         return bytes.len;
