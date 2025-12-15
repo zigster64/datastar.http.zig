@@ -1,6 +1,6 @@
 all:
 	@echo Timing of Building Binaries ...
-	time zig build -Doptimize=ReleaseFast
+	time zig build -Doptimize=ReleaseFast -freference-trace=6
 	time go build
 	@mv zig-out/bin/bench bench-zig
 	@mv bench bench-go
