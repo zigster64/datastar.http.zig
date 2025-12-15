@@ -231,9 +231,9 @@ sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
 // variants of getting an SSE object
 
 // create SSE with custom buffer
-var sse = NewSSEBuffered(req, res, buffer, output_buffer) !SSE 
+var sse = NewSSEBuffered(req, res, buffer) !SSE 
 // create an SSE object from an existing open connection
-var sse = NewSSEFromStream(gpa: stream: std.net.Stream, buffer: []u8, output_buffer: []u8) SSE
+var sse = NewSSEFromStream(gpa: stream: std.net.Stream, buffer: []u8) SSE
 // fine tune internal IO buffering / other configuration
 datastar.configure(.{ .buffer_size = 255 });
 
@@ -503,7 +503,7 @@ In some rare cases, you may want to apply a custom buffer to the SSE stream outs
 Use 
 
 ```zig
-    pub fn NewSSEBuffered(req, res, buffer, output_buffer) !SSE 
+    pub fn NewSSEBuffered(req, res, buffer) !SSE 
 ```
 
 For example - see `fn code()` in `examples/01_basic.zig`, where it provides its own buffer to the SSE object, where the size is calculated in advance based on the size 
@@ -706,13 +706,13 @@ All callback functions will provide this existing open stream as a parameter.
 
 You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
 
-Use this function, which takes an existing open std.net.Stream, and an optional input_buffer to use for writes, and an output_buffer for writing to the stream.
+Use this function, which takes an existing open std.net.Stream, and an optional input_buffer to use for writes.
 
 (ie - you can set it to the empty buffer &.{} for an unbuffered writer).
 
 
 ```zig
-    pub fn NewSSEFromStream(std.net.Stream, buffer: []u8, output_buffer: []u8) SSE
+    pub fn NewSSEFromStream(std.net.Stream, buffer: []u8) SSE
 ```
 
 If using this method, you MUST use `sse.flush()` when you are finished writing all the data.
@@ -724,8 +724,7 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
 
     // get an SSE object for the given stream
     var buffer: [1024]u8 = undefined;
-    var output_buffer: [1024]u8 = undefined;
-    var sse = datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
+    var sse = datastar.NewSSEFromStream(stream, &buffer);
 
     // Set the sse to PatchElements, and return us a writer
     var w = sse.patchElementsWriter(.{});

@@ -170,8 +170,7 @@ pub const App = struct {
         }
 
         var buffer: [1024]u8 = undefined;
-        var output_buffer: [1024]u8 = undefined;
-        var sse = datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
+        var sse = datastar.NewSSEFromStream(stream, &buffer);
 
         // Update the HTML in the correct order
         var w = sse.patchElementsWriter(.{ .view_transition = true });
@@ -218,8 +217,7 @@ pub const App = struct {
         if (session) |s| {
             if (app.sessions.get(s)) |prefs| {
                 var buffer: [32]u8 = undefined;
-                var output_buffer: [32]u8 = undefined;
-                var sse = datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
+                var sse = datastar.NewSSEFromStream(stream, &buffer);
 
                 try sse.patchSignals(.{
                     .sort = @tagName(prefs.sort),

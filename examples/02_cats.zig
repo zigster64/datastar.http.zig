@@ -78,8 +78,7 @@ pub const App = struct {
         }
 
         var buffer: [1024]u8 = undefined;
-        var output_buffer: [1024]u8 = undefined;
-        var sse = datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
+        var sse = datastar.NewSSEFromStream(stream, &buffer);
 
         var w = sse.patchElementsWriter(.{});
         try w.print(
