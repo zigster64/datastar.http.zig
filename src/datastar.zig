@@ -53,6 +53,7 @@ pub const SSE = struct {
     stream: std.net.Stream = undefined,
     msg: ?Message = null,
     buffer: []u8 = &.{},
+    output_buffer: []u8 = &.{},
     allocator: ?std.mem.Allocator = null,
 
     /// use close() to flush out the data to the SSE connection, then close the connection
@@ -75,7 +76,7 @@ pub const SSE = struct {
 
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt, self.buffer);
+        var msg = Message.init(self.stream, .patchElements, opt, self.buffer, self.output_buffer);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
@@ -84,7 +85,7 @@ pub const SSE = struct {
 
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt, self.buffer);
+        var msg = Message.init(self.stream, .patchElements, opt, self.buffer, self.output_buffer);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
@@ -95,14 +96,14 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchElements, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchElements, opt, self.buffer);
+            self.msg = Message.init(self.stream, .patchElements, opt, self.buffer, self.output_buffer);
         }
         return &self.msg.?.interface;
     }
 
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchSignals, opt, self.buffer);
+        var msg = Message.init(self.stream, .patchSignals, opt, self.buffer, self.output_buffer);
         try msg.header();
 
         const json_formatter = std.json.fmt(value, json_opt);
@@ -114,14 +115,14 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchSignals, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchSignals, opt, self.buffer);
+            self.msg = Message.init(self.stream, .patchSignals, opt, self.buffer, self.output_buffer);
         }
         return &self.msg.?.interface;
     }
 
     pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt, self.buffer);
+        var msg = Message.init(self.stream, .executeScript, opt, self.buffer, self.output_buffer);
         var w = &msg.interface;
         try msg.header();
         try w.writeAll(script);
@@ -130,7 +131,7 @@ pub const SSE = struct {
 
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt, self.buffer);
+        var msg = Message.init(self.stream, .executeScript, opt, self.buffer, self.output_buffer);
         var w = &msg.interface;
         try msg.header();
         try w.print(script, args);
@@ -141,7 +142,7 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.executeScript, opt);
         } else {
-            self.msg = Message.init(self.stream, .executeScript, opt, self.buffer);
+            self.msg = Message.init(self.stream, .executeScript, opt, self.buffer, self.output_buffer);
         }
         return &self.msg.?.interface;
     }
@@ -158,6 +159,7 @@ pub fn NewSSE(req: anytype, res: anytype) !SSE {
             }
             break :blk try res.arena.alloc(u8, config.buffer_size);
         },
+        .output_buffer = try res.arena.alloc(u8, 16 * 1024),
     };
 }
 
@@ -167,6 +169,7 @@ pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
     return SSE{
         .stream = stream,
         .buffer = buffer,
+        .output_buffer = try res.arena.alloc(u8, 16 * 1024),
     };
 }
 
@@ -178,7 +181,6 @@ pub fn NewSSEFromStream(stream: std.net.Stream, input_buffer: []u8) SSE {
 }
 
 pub const Message = struct {
-    stream: std.net.Stream,
     stream_writer: std.net.Stream.Writer,
     started: bool = false,
     command: Command = .patchElements,
@@ -190,10 +192,9 @@ pub const Message = struct {
     line_in_progress: bool = false,
     interface: std.Io.Writer,
 
-    fn init(stream: std.net.Stream, comptime command: Command, opt: anytype, buffer: []u8) Message {
+    fn init(stream: std.net.Stream, comptime command: Command, opt: anytype, buffer: []u8, out_buffer: []u8) Message {
         var m = Message{
-            .stream = stream,
-            .stream_writer = stream.writer(&.{}),
+            .stream_writer = stream.writer(out_buffer),
             .command = command,
             .interface = .{
                 .buffer = buffer, // by default is empty, but can be expanded using NewSSEBuffered()
@@ -323,20 +324,19 @@ pub const Message = struct {
 
         // std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
 
-        // pub fn write(self: *Message, bytes: []const u8) !usize {
         if (!self.started) {
             try self.header();
         }
 
         var written: usize = 0;
         if (w.end > 0) {
-            written += try writeBytes(self, &self.stream_writer.interface, w.buffered());
+            written += try writeBytesScan(self, &self.stream_writer.interface, w.buffered());
         }
-        written += try writeBytes(self, &self.stream_writer.interface, data[0]);
+        written += try writeBytesScan(self, &self.stream_writer.interface, data[0]);
         return w.consume(written);
     }
 
-    // alt implementation of writeBytes using SIMD scan of the input to find newlines
+    // implementation of writeBytes using SIMD scan of the input to find newlines
     fn writeBytesScan(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) !usize {
         const prefix = switch (self.command) {
             .patchElements, .executeScript => "data: elements ",
@@ -386,10 +386,10 @@ pub const Message = struct {
         }
     }
 
-    // alt implementation using Vectored IO
+    // implementation using Vectored IO
     // using this method means we dont need to buffer the socket writer at all - just pass it pointers into the input data
     // as an array of vectors - still uses a single system call, but no extra allocations or stack usage
-    fn writeBytes(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) error{WriteFailed}!usize {
+    fn writeBytesIOVec(self: *Message, stream_writer: *std.Io.Writer, bytes: []const u8) error{WriteFailed}!usize {
         const BATCH_SIZE = 1024;
         const prefix = switch (self.command) {
             .patchElements, .executeScript => "data: elements ",
