@@ -416,10 +416,12 @@ fn code(req: *tk.Request, res: *tk.Response, snip_id: u8) !void {
     // create a buffer double the size of the snippet, to allow for brackets and extra HTML things
     // so it all fits nicely in a single write operation to the SSE stream
     const buffer: []u8 = try res.arena.alloc(u8, data.len * 2);
+    const output_buffer: []u8 = try res.arena.alloc(u8, data.len * 2);
     var sse = try datastar.NewSSEBuffered(
         req,
         res,
         buffer,
+        output_buffer,
     );
     defer sse.close();
 

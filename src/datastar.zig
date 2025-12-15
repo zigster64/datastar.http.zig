@@ -165,17 +165,17 @@ pub fn NewSSE(req: anytype, res: anytype) !SSE {
     };
 }
 
-pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
+pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8, output_buffer: []u8) !SSE {
     _ = req;
     const stream = try res.startEventStreamSync();
     return SSE{
         .stream = stream,
         .buffer = buffer,
-        .output_buffer = try res.arena.alloc(u8, config.output_buffer_size),
+        .output_buffer = output_buffer,
     };
 }
 
-pub fn NewSSEFromStream(stream: std.net.Stream, input_buffer: []u8, output_buffer: []u8) !SSE {
+pub fn NewSSEFromStream(stream: std.net.Stream, input_buffer: []u8, output_buffer: []u8) SSE {
     return SSE{
         .stream = stream,
         .buffer = input_buffer,

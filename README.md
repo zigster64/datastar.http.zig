@@ -231,9 +231,9 @@ sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
 // variants of getting an SSE object
 
 // create SSE with custom buffer
-var sse = NewSSEBuffered(req, res, buffer) !SSE 
+var sse = NewSSEBuffered(req, res, buffer, output_buffer) !SSE 
 // create an SSE object from an existing open connection
-var sse = NewSSEFromStream(gpa: std.mem.Allocator, stream: std.net.Stream, buffer: []u8) SSE
+var sse = NewSSEFromStream(gpa: stream: std.net.Stream, buffer: []u8, output_buffer: []u8) SSE
 // fine tune internal IO buffering / other configuration
 datastar.configure(.{ .buffer_size = 255 });
 
@@ -503,7 +503,7 @@ In some rare cases, you may want to apply a custom buffer to the SSE stream outs
 Use 
 
 ```zig
-    pub fn NewSSEBuffered(req, res, buffer) !SSE 
+    pub fn NewSSEBuffered(req, res, buffer, output_buffer) !SSE 
 ```
 
 For example - see `fn code()` in `examples/01_basic.zig`, where it provides its own buffer to the SSE object, where the size is calculated in advance based on the size 
@@ -725,7 +725,7 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
     // get an SSE object for the given stream
     var buffer: [1024]u8 = undefined;
     var output_buffer: [1024]u8 = undefined;
-    var sse = try datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
+    var sse = datastar.NewSSEFromStream(stream, &buffer, &output_buffer);
 
     // Set the sse to PatchElements, and return us a writer
     var w = sse.patchElementsWriter(.{});
