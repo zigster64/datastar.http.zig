@@ -1,0 +1,18 @@
+.{
+    .name = .scenario_test,
+    .version = "0.0.0",
+    .fingerprint = 0xb8b2a8309ed6bd72,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .httpz = .{
+            .url = "git+https://github.com/karlseguin/http.zig#1c0ec3751c53e276d5e0c42b6d5481e72d9d1971",
+            .hash = "httpz-0.0.0-PNVzrEktBwCzPoiua-S8LAYo2tILqczm3tSpneEzLQ9L",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
