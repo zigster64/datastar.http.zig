@@ -233,7 +233,7 @@ sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
 // create SSE with custom buffer
 var sse = NewSSEBuffered(req, res, buffer) !SSE 
 // create an SSE object from an existing open connection
-var sse = NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+var sse = NewSSEFromStream(gpa: stream: std.net.Stream, buffer: []u8) SSE
 // fine tune internal IO buffering / other configuration
 datastar.configure(.{ .buffer_size = 255 });
 
@@ -706,16 +706,16 @@ All callback functions will provide this existing open stream as a parameter.
 
 You can then use this SSE object to patchElements / patchSignals / executeScripts, etc
 
-Use this function, which takes an existing open std.net.Stream, and an optional buffer to use for writes.
+Use this function, which takes an existing open std.net.Stream, and an optional input_buffer to use for writes.
 
 (ie - you can set it to the empty buffer &.{} for an unbuffered writer).
 
 
 ```zig
-    pub fn NewSSEFromStream(stream: std.net.Stream, buffer: []u8) SSE
+    pub fn NewSSEFromStream(std.net.Stream, buffer: []u8) SSE
 ```
 
-If using this method, you MUST use `sse.flush()` when you are finished.
+If using this method, you MUST use `sse.flush()` when you are finished writing all the data.
 
 Simplifed Example, from `examples/02_cats.zig` in the `publishCatList` function :
 
