@@ -2,10 +2,10 @@
 
 This sub-dir holds a simple Zig, Go and Bun example that does a simple thing :
 
-- expose a / endpoint
-- Take a 100kb sample data file and output it through the SSE patchElements conversion
+- expose a / endpoint that outputs a sample 100k file
+- expose a /sse endpoint that outputs a sample 20k file, but passes it through SSE / Datastar conversion
 - Hit the endpoint with a browser, observe they all give the same output, and show time spend in the handler
-- Hit it with a bench tool such as `wrk -t12 -c400 -d10s http://localhost:8090/` to test total throughput
+- Hit it with a bench tool such as `wrk -t12 -c400 -d10s http://localhost:8090/sse` to test total throughput
 
 # Zig Test
 

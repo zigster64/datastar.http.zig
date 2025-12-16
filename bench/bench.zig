@@ -19,21 +19,27 @@ pub fn main() !void {
 
     var server = try httpz.Server(void).init(gpa, .{
         .address = "0.0.0.0",
-        .port = 8090,
-        .thread_pool = .{ .count = 32, .backlog = 255 },
-        .workers = .{ .count = 32, .max_conn = 2000 },
+        .port = 8093,
+        .workers = .{ .count = 32 },
     }, {});
     var router = try server.router(.{});
     router.get("/", handler, .{});
-    std.debug.print("Zig Datastar SSE Server running at http://localhost:8090\n", .{});
+    router.get("/sse", sseHandler, .{});
+    std.debug.print("Zig Datastar SSE Server running at http://localhost:8093\n", .{});
     return server.listen();
 }
 
-pub fn handler(req: *httpz.Request, res: *httpz.Response) !void {
+pub fn handler(_: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    res.body = @embedFile("index.html");
+    std.debug.print("Zig index handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
+}
+
+pub fn sseHandler(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     var sse = try datastar.NewSSE(req, res);
     defer sse.close();
 
-    try sse.patchElements(@embedFile("index.html"), .{});
-    std.debug.print("handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
+    try sse.patchElements(@embedFile("sse.html"), .{});
+    std.debug.print("Zig SSE handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
 }
