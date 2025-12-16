@@ -62,8 +62,8 @@ RAM size = peak RAM usage according to Activity Monitor, at the end of the SSE t
 | **Zig** | Plain HTML | 39,654 | 5.50ms | **5.61 GB** | 533,672 |
 | **Zig** | **Datastar SSE** | **72,756** | **4.26ms** | 1.73 GB | 12.7 MB  |
 | | | | | | |
-| **Rust** | Plain HTML | 39,040 | 5.35ms | **5.53 GB** | 1,845,888 |
-| **Rust** | **Datastar SSE** | **74,327** | **3.19** | 1.57 GB | 14.2 MB |
+| **Rust** | Plain HTML | 38,201 | 5.13ms | **5.41 GB** | 1,845,936 |
+| **Rust** | **Datastar SSE** | **68,320** | **3.51** | 1.63 GB | 16.9 MB |
 | | | | | | |
 | **Go** | Plain HTML | 23,730 | 11.89ms | 3.36 GB | 7,995,922 |
 | **Go** | Datastar SSE | 27,788 | 11.49ms | 678.12 MB | 28.3 MB |

@@ -7,9 +7,7 @@ use axum::response::sse::{Event, KeepAlive};
 use futures::stream::{self, Stream};
 use std::time::Instant;
 use std::convert::Infallible;
-
-// We use native Axum event building for maximum performance
-// instead of fighting the SDK trait bounds.
+use datastar::prelude::*;
 
 const INDEX_HTML: &str = include_str!("index.html");
 const SSE_HTML: &str = include_str!("sse.html");
@@ -32,19 +30,28 @@ async fn main() {
 async fn index_handler() -> impl IntoResponse {
     let start = Instant::now();
     let resp = Html(INDEX_HTML);
-    
     let duration = start.elapsed();
     println!("Rust index handler took {} microseconds", duration.as_micros());
-    
     resp
 }
 
 async fn sse_handler() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let start = Instant::now();
 
+    let sdk_event = PatchElements::new(SSE_HTML);
+    let elements_str = sdk_event.elements.as_ref().unwrap();
+
+    let mut data_payload = String::with_capacity(elements_str.len() + 1024);
+    
+    for line in elements_str.lines() {
+        data_payload.push_str("elements ");
+        data_payload.push_str(line);
+        data_payload.push('\n');
+    }
+
     let axum_event = Event::default()
         .event("datastar-merge-fragments")
-        .data(SSE_HTML);
+        .data(data_payload);
 
     let duration = start.elapsed();
     println!("Rust SSE handler took {} microseconds", duration.as_micros());
