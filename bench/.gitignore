@@ -1,5 +1,7 @@
 # dependencies (bun install)
 node_modules
+bench-zig
+bench-go
 
 # output
 out
