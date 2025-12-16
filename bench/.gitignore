@@ -2,6 +2,10 @@
 node_modules
 bench-zig
 bench-go
+bench-rust
+target
+zig-out
+.zig-cache
 
 # output
 out

@@ -30,6 +30,13 @@ bun bench.ts
 ```
 Runs a TS test server on 8092
 
+# Rust / Axum Test
+
+```
+cargo build --release
+./target/release/bench-rust
+```
+
 # Makefile
 
 You can use the Makefile to do 
@@ -48,15 +55,21 @@ Plain HTML payloads are 100k of lorem HTML
 
 SSE payloads are 20k of lorem HTML, converted to SSE event streams
 
-| Language | Test Case | Requests/sec | Latency (Avg) | Transfer/sec |
-| :--- | :--- | :--- | :--- | :--- |
-| **Zig** | Plain HTML | 39,654 | 5.50ms | **5.61 GB** |
-| **Zig** | **Datastar SSE** | **72,756 🚀** | **4.26ms** | 1.73 GB |
-| | | | | |
-| **Go** | Plain HTML | 23,730 | 11.89ms | 3.36 GB |
-| **Go** | Datastar SSE | 27,788 | 11.49ms | 678.12 MB |
-| | | | | |
-| **Bun** | Plain HTML | 28,667 | 8.30ms | 4.06 GB |
-| **Bun** | Datastar SSE | 20,828 | 11.44ms | 508.25 MB |
-| **Bun** | Plain HTML (w/ Log) | 12,664 | 18.81ms | 1.79 GB |
-| **Bun** | Datastar SSE (w/ Log) | 9,221 | 25.81ms | 225.01 MB |
+RAM size = peak RAM usage according to Activity Monitor, at the end of the SSE test
+
+| Language | Test Case | Requests/sec | Latency (Avg) | Transfer/sec | Binary/RAM Size |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Zig** | Plain HTML | 39,654 | 5.50ms | **5.61 GB** | 533,672 |
+| **Zig** | **Datastar SSE** | **72,756** | **4.26ms** | 1.73 GB | 12.7 MB  |
+| | | | | | |
+| **Rust** | Plain HTML | 39,040 | 5.35ms | **5.53 GB** | 1,845,888 |
+| **Rust** | **Datastar SSE** | **74,327** | **3.19** | 1.57 GB | 14.2 MB |
+| | | | | | |
+| **Go** | Plain HTML | 23,730 | 11.89ms | 3.36 GB | 7,995,922 |
+| **Go** | Datastar SSE | 27,788 | 11.49ms | 678.12 MB | 28.3 MB |
+| | | | | | |
+| **Bun** | Plain HTML | 28,667 | 8.30ms | 4.06 GB | n/a |
+| **Bun** | Datastar SSE | 20,828 | 11.44ms | 508.25 MB | 58.4 MB |
+| | | | | | |
+| **Bun** | Plain HTML (w/ Log) | 12,664 | 18.81ms | 1.79 GB | n/a |
+| **Bun** | Datastar SSE (w/ Log) | 9,221 | 25.81ms | 225.01 MB | 58.6 MB |
