@@ -3,19 +3,8 @@ const httpz = @import("httpz");
 const datastar = @import("datastar");
 const builtin = @import("builtin");
 
-const Allocator = std.mem.Allocator;
-var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-
 pub fn main() !void {
-    const gpa, const is_debug = gpa: {
-        break :gpa switch (builtin.mode) {
-            .Debug, .ReleaseSafe => .{ debug_allocator.allocator(), true },
-            .ReleaseFast, .ReleaseSmall => .{ std.heap.smp_allocator, false },
-        };
-    };
-    defer if (is_debug) {
-        _ = debug_allocator.deinit();
-    };
+    const gpa = std.heap.smp_allocator;
 
     var server = try httpz.Server(void).init(gpa, .{
         .address = "0.0.0.0",
@@ -24,6 +13,7 @@ pub fn main() !void {
     var router = try server.router(.{});
     router.get("/", handler, .{});
     router.get("/sse", sseHandler, .{});
+
     std.debug.print("Zig Datastar SSE Server running at http://localhost:8098\n", .{});
     return server.listen();
 }
