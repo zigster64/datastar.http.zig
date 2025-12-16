@@ -724,7 +724,8 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
 
     // get an SSE object for the given stream
     var buffer: [1024]u8 = undefined;
-    var sse = datastar.NewSSEFromStream(stream, &buffer);
+    var sse = datastar.NewSSEFromStream(stream, app.gpa, &buffer);
+    defer sse.deinit();
 
     // Set the sse to PatchElements, and return us a writer
     var w = sse.patchElementsWriter(.{});

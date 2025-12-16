@@ -37,10 +37,6 @@ const Config = struct {
             .hostname = "0.0.0.0",
         },
     },
-
-    datastar: datastar.Config = .{
-        .buffer_size = 255,
-    },
 };
 
 const App = struct {
@@ -62,7 +58,6 @@ const App = struct {
     pub fn configure(bundle: *tk.Bundle) void {
         bundle.addInitHook(logz.setup);
         bundle.addDeinitHook(logz.deinit);
-        bundle.addInitHook(datastar.configure);
         bundle.addInitHook(printAddress);
     }
 
@@ -126,8 +121,6 @@ pub fn main_old() !void {
     });
     defer logz.deinit();
 
-    datastar.configure(.{ .buffer_size = 255 });
-
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     std.debug.print("... or any other IP address pointing to this machine\n", .{});
     try server.start();
@@ -171,9 +164,7 @@ fn patchElements(req: *tk.Request, res: *tk.Response) !void {
         logz.info().string("event", "patchElements").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     try sse.patchElementsFmt(
         \\<p id="mf-patch">This is update number {d}</p>
@@ -205,7 +196,6 @@ fn patchElementsOpts(req: *tk.Request, res: *tk.Response) !void {
     }
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     // read the signals to work out which options to set, checking the name of the
     // option vs the enum values, and add them relative to the mf-patch-opt item
@@ -249,7 +239,6 @@ fn patchElementsOptsReset(req: *tk.Request, res: *tk.Response) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     try sse.patchElements(@embedFile("01_index_opts.html"), .{
         .selector = "#patch-element-card",
@@ -284,7 +273,6 @@ fn patchSignals(req: *tk.Request, res: *tk.Response) !void {
 
     // Outputs a formatted patch-signals SSE response to update signals
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
@@ -303,7 +291,6 @@ fn patchSignalsOnlyIfMissing(req: *tk.Request, res: *tk.Response) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 1, 100);
@@ -334,7 +321,6 @@ fn patchSignalsRemove(req: *tk.Request, res: *tk.Response, signals_to_remove: []
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     var w = sse.patchSignalsWriter(.{});
 
@@ -361,7 +347,6 @@ fn executeScript(req: *tk.Request, res: *tk.Response, sample_id: u8) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     // make up an array of attributes for this
     var attribs = datastar.ScriptAttributes.init(res.arena);
@@ -413,11 +398,7 @@ fn code(req: *tk.Request, res: *tk.Response, snip_id: u8) !void {
 
     const data = snippets[snip_id - 1];
 
-    // create a buffer double the size of the snippet, to allow for brackets and extra HTML things
-    // so it all fits nicely in a single write operation to the SSE stream
-    const buffer: []u8 = try res.arena.alloc(u8, data.len * 2);
-    var sse = try datastar.NewSSEBuffered(req, res, buffer);
-    defer sse.close();
+    var sse = try datastar.NewSSE(req, res);
 
     const selector = try std.fmt.allocPrint(res.arena, "#code-{d}", .{snip_id});
     var w = sse.patchElementsWriter(.{

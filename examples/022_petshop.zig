@@ -107,7 +107,6 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         // no valid session - create a new one
         // redirect them to /
         var sse = try datastar.NewSSE(req, res);
-        defer sse.close();
         try sse.executeScript("window.location='/'", .{});
     }
 }

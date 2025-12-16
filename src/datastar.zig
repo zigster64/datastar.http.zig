@@ -38,31 +38,16 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
-pub const Config = struct {
-    buffer_size: usize = 0,
-    // ... other config options can be added here
-};
-
-var config: Config = .{};
-
-pub fn configure(new_config: Config) void {
-    config = new_config;
-}
-
 pub const SSE = struct {
-    stream: std.net.Stream = undefined,
+    stream: std.net.Stream, // so we can create an SSE generator over an existing stream
+    stream_writer: *std.Io.Writer,
+    output_buffer: std.Io.Writer.Allocating,
     msg: ?Message = null,
-    buffer: []u8 = &.{},
-    output_buffer: []u8 = &.{},
-    allocator: ?std.mem.Allocator = null,
 
-    /// use close() to flush out the data to the SSE connection, then close the connection
-    pub fn close(self: *SSE) void {
-        self.flush() catch {};
-        self.stream.close();
+    pub fn deinit(self: *SSE) void {
+        self.output_buffer.deinit();
     }
 
-    /// use flush() to flush out all the data to the SSE connection, keeps connection open
     pub fn flush(self: *SSE) !void {
         if (self.msg) |*msg| try msg.end();
     }
@@ -74,9 +59,14 @@ pub const SSE = struct {
         return null;
     }
 
+    pub fn buffered(self: *SSE) []u8 {
+        return self.output_buffer.written();
+    }
+
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt, self.buffer, self.output_buffer);
+        var msg: Message = undefined;
+        msg.init(.patchElements, opt, self.stream_writer, &self.output_buffer.writer);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
@@ -85,7 +75,8 @@ pub const SSE = struct {
 
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchElements, opt, self.buffer, self.output_buffer);
+        var msg: Message = undefined;
+        msg.init(.patchElements, opt, self.stream_writer, &self.output_buffer.writer);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
@@ -96,14 +87,17 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchElements, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchElements, opt, self.buffer, self.output_buffer);
+            var msg: Message = undefined;
+            msg.init(.patchElements, opt, self.stream_writer, &self.output_buffer.writer);
+            self.msg = msg;
         }
         return &self.msg.?.interface;
     }
 
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .patchSignals, opt, self.buffer, self.output_buffer);
+        var msg: Message = undefined;
+        msg.init(.patchSignals, opt, self.stream_writer, &self.output_buffer.writer);
         try msg.header();
 
         const json_formatter = std.json.fmt(value, json_opt);
@@ -115,14 +109,17 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.patchSignals, opt);
         } else {
-            self.msg = Message.init(self.stream, .patchSignals, opt, self.buffer, self.output_buffer);
+            var msg: Message = undefined;
+            msg.init(.patchSignals, opt, self.stream_writer, &self.output_buffer.writer);
+            self.msg = msg;
         }
         return &self.msg.?.interface;
     }
 
     pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt, self.buffer, self.output_buffer);
+        var msg: Message = undefined;
+        msg.init(.executeScript, opt, self.stream_writer, &self.output_buffer.writer);
         var w = &msg.interface;
         try msg.header();
         try w.writeAll(script);
@@ -131,7 +128,8 @@ pub const SSE = struct {
 
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
         try self.flush();
-        var msg = Message.init(self.stream, .executeScript, opt, self.buffer, self.output_buffer);
+        var msg: Message = undefined;
+        msg.init(.executeScript, opt, self.stream_writer, &self.output_buffer.writer);
         var w = &msg.interface;
         try msg.header();
         try w.print(script, args);
@@ -142,46 +140,46 @@ pub const SSE = struct {
         if (self.msg) |*msg| {
             msg.swapTo(.executeScript, opt);
         } else {
-            self.msg = Message.init(self.stream, .executeScript, opt, self.buffer, self.output_buffer);
+            var msg: Message = undefined;
+            msg.init(.executeScript, opt, self.stream_writer, &self.output_buffer.writer);
+            self.msg = msg;
         }
         return &self.msg.?.interface;
     }
 };
 
-pub fn NewSSE(req: anytype, res: anytype) !SSE {
-    _ = req;
-    const stream = try res.startEventStreamSync();
+pub fn NewSSE(_: anytype, res: anytype) !SSE {
+    // const stream = try res.startEventStreamSync();
+    res.content_type = .EVENTS;
+    res.headers.add("Cache-Control", "no-cache");
+    res.headers.add("Connection", "keep-alive");
+    // res.headers.add("Connection", "close");
+    // try res.writeHeader();
+
+    const allocating_writer = try std.Io.Writer.Allocating.initCapacity(res.arena, 16 * 1024);
+
     return SSE{
-        .stream = stream,
-        .buffer = blk: {
-            if (config.buffer_size == 0) {
-                break :blk &.{};
-            }
-            break :blk try res.arena.alloc(u8, config.buffer_size);
-        },
-        .output_buffer = try res.arena.alloc(u8, 16 * 1024),
+        .stream = res.conn.stream,
+        .stream_writer = res.writer(),
+        .output_buffer = allocating_writer,
     };
 }
 
-pub fn NewSSEBuffered(req: anytype, res: anytype, buffer: []u8) !SSE {
-    _ = req;
-    const stream = try res.startEventStreamSync();
+pub fn NewSSEFromStream(stream: std.net.Stream, allocator: std.mem.Allocator) SSE {
+    var w = stream.writer(&.{});
+    const allocating_writer = std.Io.Writer.Allocating.initCapacity(allocator, 16 * 1024) catch std.Io.Writer.Allocating.init(allocator);
     return SSE{
         .stream = stream,
-        .buffer = buffer,
-        .output_buffer = try res.arena.alloc(u8, 16 * 1024),
-    };
-}
-
-pub fn NewSSEFromStream(stream: std.net.Stream, input_buffer: []u8) SSE {
-    return SSE{
-        .stream = stream,
-        .buffer = input_buffer,
+        .stream_writer = &w.interface,
+        .output_buffer = allocating_writer,
     };
 }
 
 pub const Message = struct {
-    stream_writer: std.net.Stream.Writer,
+    // stream: std.net.Stream,
+    stream_writer: *std.Io.Writer, // the final destination where the output gets sent
+    out_buffer: *std.Io.Writer, // an intermediate buffer to write the expanded Datastar event stream to
+    input_buffer: [8 * 1024]u8 = undefined,
     started: bool = false,
     command: Command = .patchElements,
 
@@ -192,15 +190,14 @@ pub const Message = struct {
     line_in_progress: bool = false,
     interface: std.Io.Writer,
 
-    fn init(stream: std.net.Stream, comptime command: Command, opt: anytype, buffer: []u8, out_buffer: []u8) Message {
-        var m = Message{
-            .stream_writer = stream.writer(out_buffer),
-            .command = command,
-            .interface = .{
-                .buffer = buffer, // by default is empty, but can be expanded using NewSSEBuffered()
-                .vtable = &.{
-                    .drain = &drain,
-                },
+    fn init(m: *Message, comptime command: Command, opt: anytype, stream_writer: *std.Io.Writer, out_buffer: *std.Io.Writer) void {
+        m.stream_writer = stream_writer;
+        m.out_buffer = out_buffer;
+        m.command = command;
+        m.interface = .{
+            .buffer = &m.input_buffer,
+            .vtable = &.{
+                .drain = &drain,
             },
         };
         switch (command) {
@@ -214,7 +211,6 @@ pub const Message = struct {
                 m.execute_script_options = opt;
             },
         }
-        return m;
     }
 
     pub fn swapTo(self: *Message, comptime command: Command, opt: anytype) void {
@@ -237,10 +233,13 @@ pub const Message = struct {
     pub fn end(self: *Message) !void {
         var me = &self.interface;
         try me.flush();
+
         if (self.started) {
             self.started = false;
             self.line_in_progress = false;
-            var w = &self.stream_writer.interface;
+
+            // const w = self.stream_writer;
+            const w = self.out_buffer;
 
             switch (self.command) {
                 else => {},
@@ -255,9 +254,9 @@ pub const Message = struct {
     }
 
     pub fn header(self: *Message) !void {
-        // var sw = self.stream.writer(&.{});
-        var w = &self.stream_writer.interface;
-        // TODO - apply all the other missing options that I havnt covered yet
+        // var w = self.stream_writer;
+        var w = self.out_buffer;
+
         switch (self.command) {
             .patchElements => {
                 try w.writeAll("event: datastar-patch-elements\n");
@@ -322,17 +321,18 @@ pub const Message = struct {
         var self: *Message = @fieldParentPtr("interface", w);
         _ = splat;
 
-        // std.debug.print("Message.drain with buffer '{s}', end={d}, data = '{s}'\n", .{ w.buffered(), w.end, data[0] });
-
         if (!self.started) {
             try self.header();
         }
 
         var written: usize = 0;
+
         if (w.end > 0) {
-            written += try writeBytesScan(self, &self.stream_writer.interface, w.buffered());
+            written += try writeBytesScan(self, self.out_buffer, w.buffered());
         }
-        written += try writeBytesScan(self, &self.stream_writer.interface, data[0]);
+        written += try writeBytesScan(self, self.out_buffer, data[0]);
+
+        // TODO - we have the expanded contents in self.out_buffer here - debug that, then send the whole contents of the out_buffer to the self.stream_writer
         return w.consume(written);
     }
 

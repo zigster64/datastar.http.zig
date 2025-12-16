@@ -49,8 +49,6 @@ pub fn main() !void {
     });
     defer logz.deinit();
 
-    datastar.configure(.{ .buffer_size = 255 });
-
     var router = try server.router(.{});
 
     router.get("/", index, .{});
@@ -111,7 +109,6 @@ fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
 
     // // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     try sse.patchElementsFmt(
         \\<p id="mf-patch">This is update number {d}</p>
@@ -119,6 +116,8 @@ fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
         .{getCountAndIncrement()},
         .{},
     );
+
+    res.body = sse.buffered();
 }
 
 // create a patchElements stream, which will write commands over the SSE connection
@@ -143,7 +142,6 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     }
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     // read the signals to work out which options to set, checking the name of the
     // option vs the enum values, and add them relative to the mf-patch-opt item
@@ -175,6 +173,7 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
             , .{getCountAndIncrement()});
         },
     }
+    res.body = sse.buffered();
 }
 
 // Just reset the options form if it gets ugly
@@ -187,11 +186,11 @@ fn patchElementsOptsReset(req: *httpz.Request, res: *httpz.Response) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     try sse.patchElements(@embedFile("01_index_opts.html"), .{
         .selector = "#patch-element-card",
     });
+    res.body = sse.buffered();
 }
 
 fn jsonSignals(_: *httpz.Request, res: *httpz.Response) !void {
@@ -212,7 +211,6 @@ fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
 
     // Outputs a formatted patch-signals SSE response to update signals
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
@@ -221,6 +219,8 @@ fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
         .foo = foo,
         .bar = bar,
     }, .{}, .{});
+
+    res.body = sse.buffered();
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
@@ -231,7 +231,6 @@ fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 1, 100);
@@ -248,6 +247,7 @@ fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
 
     try sse.executeScript("console.log('Patched newfoo and newbar, but only if missing');", .{});
 
+    res.body = sse.buffered();
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
 }
@@ -262,7 +262,6 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     var w = sse.patchSignalsWriter(.{});
 
@@ -280,6 +279,7 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
         try w.print("{{ {s}: null }}", .{signals_to_remove});
     }
 
+    res.body = sse.buffered();
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignalsRemove").string("remove", signals_to_remove).int("elapsed (μs)", t2 - t1).log();
 }
@@ -292,7 +292,6 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
 
     // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     // make up an array of attributes for this
     var attribs = datastar.ScriptAttributes.init(res.arena);
@@ -322,6 +321,7 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
         },
     }
 
+    res.body = sse.buffered();
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "executeScript").int("sample_id", sample_id).int("elapsed (μs)", t2 - t1).log();
 }
@@ -347,11 +347,7 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
 
     const data = snippets[snip_id - 1];
 
-    // create a buffer double the size of the snippet, to allow for brackets and extra HTML things
-    // so it all fits nicely in a single write operation to the SSE stream
-    const buffer: []u8 = try res.arena.alloc(u8, data.len * 2);
-    var sse = try datastar.NewSSEBuffered(req, res, buffer);
-    defer sse.close();
+    var sse = try datastar.NewSSE(req, res);
 
     const selector = try std.fmt.allocPrint(res.arena, "#code-{s}", .{snip});
     var w = sse.patchElementsWriter(.{
@@ -359,9 +355,11 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
         .mode = .append,
     });
 
+    std.debug.print("created sse for code {}\n", .{snip_id});
+    try w.writeAll("<pre><code>");
+
     var it = std.mem.splitAny(u8, data, "\n");
     while (it.next()) |line| {
-        try w.writeAll("<pre><code>");
         for (line) |c| {
             switch (c) {
                 '<' => try w.writeAll("&lt;"),
@@ -370,6 +368,9 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
                 else => try w.writeByte(c),
             }
         }
-        try w.writeAll("</code></pre>\n");
     }
+    try w.writeAll("</code></pre>\n");
+
+    std.debug.print("code\n------------\n{s}\n", .{sse.buffered()});
+    res.body = sse.buffered();
 }

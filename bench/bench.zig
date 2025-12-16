@@ -19,13 +19,12 @@ pub fn main() !void {
 
     var server = try httpz.Server(void).init(gpa, .{
         .address = "0.0.0.0",
-        .port = 8093,
-        .workers = .{ .count = 32 },
+        .port = 8098,
     }, {});
     var router = try server.router(.{});
     router.get("/", handler, .{});
     router.get("/sse", sseHandler, .{});
-    std.debug.print("Zig Datastar SSE Server running at http://localhost:8093\n", .{});
+    std.debug.print("Zig Datastar SSE Server running at http://localhost:8098\n", .{});
     return server.listen();
 }
 
@@ -38,8 +37,9 @@ pub fn handler(_: *httpz.Request, res: *httpz.Response) !void {
 pub fn sseHandler(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     try sse.patchElements(@embedFile("sse.html"), .{});
+
+    res.body = sse.buffered();
     std.debug.print("Zig SSE handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
 }

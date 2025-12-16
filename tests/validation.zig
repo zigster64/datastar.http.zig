@@ -41,8 +41,6 @@ pub fn main() !void {
     });
     defer logz.deinit();
 
-    datastar.configure(.{ .buffer_size = 255 });
-
     var router = try server.router(.{});
 
     router.get("/", index, .{});
@@ -132,7 +130,6 @@ fn runTest(req: *httpz.Request, res: *httpz.Response) !void {
     // std.debug.print("Decoded TestInput: {any}\n", .{testInput});
 
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
 
     if (testInput.events.len < 1) {
         res.status = 400;

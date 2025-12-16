@@ -169,8 +169,8 @@ pub const App = struct {
             logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session orelse "null").int("elapsed (μs)", t2 - t1).log();
         }
 
-        var buffer: [1024]u8 = undefined;
-        var sse = datastar.NewSSEFromStream(stream, &buffer);
+        var sse = datastar.NewSSEFromStream(stream, app.gpa);
+        defer sse.deinit();
 
         // Update the HTML in the correct order
         var w = sse.patchElementsWriter(.{ .view_transition = true });
@@ -216,8 +216,8 @@ pub const App = struct {
         // clients sharing this same session ID, to keep them in sync
         if (session) |s| {
             if (app.sessions.get(s)) |prefs| {
-                var buffer: [32]u8 = undefined;
-                var sse = datastar.NewSSEFromStream(stream, &buffer);
+                var sse = datastar.NewSSEFromStream(stream, app.gpa);
+                defer sse.deinit();
 
                 try sse.patchSignals(.{
                     .sort = @tagName(prefs.sort),

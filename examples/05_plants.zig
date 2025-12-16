@@ -284,8 +284,8 @@ pub const App = struct {
             logz.info().string("event", "publishPlantList").int("stream", stream.handle).int("elapsed (μs)", t2 - t1).log();
         }
 
-        var buffer: [1024]u8 = undefined;
-        var sse = datastar.NewSSEFromStream(stream, &buffer);
+        var sse = datastar.NewSSEFromStream(stream, app.gpa);
+        defer sse.deinit();
 
         var w = sse.patchElementsWriter(.{});
         try w.print(
@@ -324,7 +324,8 @@ pub const App = struct {
             gourds: usize,
             onions: usize,
         };
-        var sse = datastar.NewSSEFromStream(stream, &.{});
+        var sse = datastar.NewSSEFromStream(stream, app.gpa);
+        defer sse.deinit();
 
         try sse.patchSignals(Counts{
             .carrots = app.crop_counts[0],
