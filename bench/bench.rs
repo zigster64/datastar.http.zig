@@ -16,6 +16,7 @@ const SSE_HTML: &str = include_str!("sse.html");
 async fn main() {
     let app = Router::new()
         .route("/", get(index_handler))
+        .route("/log", get(index_handler_logged))
         .route("/sse", get(sse_handler));
 
     let port = 8099;
@@ -28,6 +29,11 @@ async fn main() {
 }
 
 async fn index_handler() -> impl IntoResponse {
+    let resp = Html(INDEX_HTML);
+    resp
+}
+
+async fn index_handler_logged() -> impl IntoResponse {
     let start = Instant::now();
     let resp = Html(INDEX_HTML);
     let duration = start.elapsed();

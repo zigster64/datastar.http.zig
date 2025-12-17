@@ -11,6 +11,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", handler)
+	http.HandleFunc("/log", handlerLogged)
 	http.HandleFunc("/sse", sseHandler)
 
 	log.Println("Go Datastar SSE Server running at http://localhost:8091")
@@ -26,6 +27,10 @@ var indexHTML string
 var sseHTML string
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(indexHTML))
+}
+
+func handlerLogged(w http.ResponseWriter, r *http.Request) {
 	t1 := time.Now().UnixMicro()
 	w.Write([]byte(indexHTML))
 	log.Println("Go index handler took", time.Now().UnixMicro()-t1, "microseconds")

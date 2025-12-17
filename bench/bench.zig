@@ -12,6 +12,7 @@ pub fn main() !void {
     }, {});
     var router = try server.router(.{});
     router.get("/", handler, .{});
+    router.get("/log", handlerLogged, .{});
     router.get("/sse", sseHandler, .{});
 
     std.debug.print("Zig Datastar SSE Server running at http://localhost:8098\n", .{});
@@ -19,6 +20,10 @@ pub fn main() !void {
 }
 
 pub fn handler(_: *httpz.Request, res: *httpz.Response) !void {
+    res.body = @embedFile("index.html");
+}
+
+pub fn handlerLogged(_: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     res.body = @embedFile("index.html");
     std.debug.print("Zig index handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
