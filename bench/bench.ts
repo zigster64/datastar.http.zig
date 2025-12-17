@@ -7,6 +7,14 @@ const server = Bun.serve({
   port: 8092,
   routes: {
     "/": () => {
+      return new Response(
+        indexHTML,
+        {
+          headers: { "Content-Type": "text/html" },
+        },
+      );
+    },
+    "/log": () => {
       const start = Bun.nanoseconds();
 
       const res = new Response(
@@ -16,8 +24,7 @@ const server = Bun.serve({
         },
       );
 
-      const duration = (Bun.nanoseconds() - start) / 1000;
-      console.log(`TS index handler took ${duration.toFixed(0)} microseconds`);
+      console.log('TS index handler took', Bun.nanoseconds() - start, "ns");
       return res;
     },
     "/sse": () => {
@@ -28,8 +35,7 @@ const server = Bun.serve({
         stream.patchElements(sseHTML);
       });
 
-      const duration = (Bun.nanoseconds() - start) / 1000;
-      console.log(`TS SSE handler took ${duration.toFixed(0)} microseconds`);
+      console.log('TS SSE handler took', Bun.nanoseconds() - start, 'ns');
       return res;
     }
   },
