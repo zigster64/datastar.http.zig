@@ -2,11 +2,12 @@
     .name = .datastar_http_zig,
     .version = "0.1.0",
     .fingerprint = 0xf20f4288559cebf1, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.15.1",
+    .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .httpz = .{
-            .url = "git+https://github.com/karlseguin/http.zig#2965722dcf9fd656f218fdbd76f4ced0f376bd0d",
-            .hash = "httpz-0.0.0-PNVzrLwlBwCjuWNaokqbQwrsstWT3c_4yb-8TNuYOFcZ",
+            .path = "../http.zig",
+            // .url = "git+https://github.com/karlseguin/http.zig#2965722dcf9fd656f218fdbd76f4ced0f376bd0d",
+            // .hash = "httpz-0.0.0-PNVzrLwlBwCjuWNaokqbQwrsstWT3c_4yb-8TNuYOFcZ",
         },
         .logz = .{
             .url = "git+https://github.com/karlseguin/log.zig?ref=master#cc5268932e84da9dad09fd48b544d67212889c02",

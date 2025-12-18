@@ -196,7 +196,7 @@ fn patchElementsOpts(req: *tk.Request, res: *tk.Response) !void {
     if (signals.morph.len < 1) {
         return;
     }
-    // these are short lived updates so we close the request as soon as its done
+
     var sse = try datastar.NewSSE(req, res);
 
     // read the signals to work out which options to set, checking the name of the
@@ -241,7 +241,6 @@ fn patchElementsOptsReset(req: *tk.Request, res: *tk.Response) !void {
         logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     try sse.patchElements(@embedFile("01_index_opts.html"), .{
@@ -297,7 +296,6 @@ fn patchSignals(req: *tk.Request, res: *tk.Response) !void {
 fn patchSignalsOnlyIfMissing(req: *tk.Request, res: *tk.Response) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     // this will set the following signals
@@ -329,7 +327,6 @@ fn patchSignalsRemove(req: *tk.Request, res: *tk.Response, signals_to_remove: []
 
     // Would normally want to escape and validate the provided names here
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     var w = sse.patchSignalsWriter(.{});
@@ -357,7 +354,6 @@ fn patchSignalsRemove(req: *tk.Request, res: *tk.Response, signals_to_remove: []
 fn executeScript(req: *tk.Request, res: *tk.Response, sample_id: u8) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     // make up an array of attributes for this

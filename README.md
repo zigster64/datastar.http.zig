@@ -9,7 +9,7 @@ https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
 This SDK uses streams all the way down, so there is no implicit extra allocations.
 
 Versions :
-- Datastar 1.0.0-RC6
+- Datastar 1.0.0-RC7
 - Zig 0.15.2
 
 It uses the latest "writergate" changes for zig 0.15.2, and makes good use of the high speed buffered 

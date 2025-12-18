@@ -369,6 +369,7 @@ pub const Message = struct {
                 self.line_in_progress = true;
             }
             try stream_writer.writeAll(rest);
+            try stream_writer.writeAll("\n");
         }
 
         return bytes.len;

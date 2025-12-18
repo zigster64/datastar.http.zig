@@ -79,13 +79,6 @@ fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
     defer {
         const t2 = std.time.microTimestamp();
         logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
-        // NOTE - you will see REALLY fast timings on these ones compared to SSE transfers
-        // but thats only because this function exits before doing any writing.
-        // It just sets the response body ... the http engine will do the writing afterwards
-        //
-        // If this function is changed to get a writer to the response, and w.print
-        // directly to the stream just like the SSE methods use,  then you will see the
-        // timings are ballpark the same as doing the SSE calls.
     }
 
     res.content_type = .HTML;
@@ -107,7 +100,6 @@ fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "patchElements").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     try sse.patchElementsFmt(
@@ -140,7 +132,7 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     if (signals.morph.len < 1) {
         return;
     }
-    // these are short lived updates so we close the request as soon as its done
+
     var sse = try datastar.NewSSE(req, res);
 
     // read the signals to work out which options to set, checking the name of the
@@ -185,7 +177,6 @@ fn patchElementsOptsReset(req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     try sse.patchElements(@embedFile("01_index_opts.html"), .{
@@ -231,7 +222,6 @@ fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
 fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     // this will set the following signals
@@ -260,9 +250,6 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     const signals_to_remove: []const u8 = req.param("names").?;
     var names_iter = std.mem.splitScalar(u8, signals_to_remove, ',');
 
-    // Would normally want to escape and validate the provided names here
-
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     var w = sse.patchSignalsWriter(.{});
@@ -293,7 +280,6 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     const sample = req.param("sample").?;
     const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
 
     // make up an array of attributes for this

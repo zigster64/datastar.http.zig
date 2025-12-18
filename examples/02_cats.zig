@@ -99,8 +99,12 @@ pub const App = struct {
             \\</div>
         );
 
-        try w.flush();
-        try sse.flush();
+        var buf: [4096]u8 = undefined;
+        var out = stream.writer(&buf);
+        out.interface.writeAll(sse.body()) catch |err| {
+            std.debug.print("writeAll out err {}\n", .{err});
+        };
+        try out.interface.flush();
     }
 };
 
