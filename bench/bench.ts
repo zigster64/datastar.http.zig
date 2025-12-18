@@ -32,7 +32,7 @@ const server = Bun.serve({
 
       // This creates the Response object and initializes the stream
       const res = ServerSentEventGenerator.stream((stream) => {
-        stream.patchElements(sseHTML);
+        stream.patchElements(indexHTML);
       });
 
       console.log('TS SSE handler took', Bun.nanoseconds() - start, 'ns');

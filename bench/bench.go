@@ -33,12 +33,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func handlerLogged(w http.ResponseWriter, r *http.Request) {
 	t1 := time.Now().UnixMicro()
 	w.Write([]byte(indexHTML))
-	log.Println("Go index handler took", time.Now().UnixMicro()-t1, "microseconds")
+	println("Go index handler took", time.Now().UnixMicro()-t1, "microseconds")
 }
 
 func sseHandler(w http.ResponseWriter, r *http.Request) {
 	t1 := time.Now().UnixMicro()
 	sse := datastar.NewSSE(w, r)
-	sse.PatchElements(sseHTML)
-	log.Println("Go SSE handler took", time.Now().UnixMicro()-t1, "microseconds")
+	sse.PatchElements(indexHTML)
+	println("Go index handler took", time.Now().UnixMicro()-t1, "microseconds")
 }

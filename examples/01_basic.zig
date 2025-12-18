@@ -355,7 +355,6 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
         .mode = .append,
     });
 
-    std.debug.print("created sse for code {}\n", .{snip_id});
     try w.writeAll("<pre><code>");
 
     var it = std.mem.splitAny(u8, data, "\n");
@@ -371,6 +370,5 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
     }
     try w.writeAll("</code></pre>\n");
 
-    std.debug.print("code\n------------\n{s}\n", .{sse.buffered()});
     res.body = sse.buffered();
 }
