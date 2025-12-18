@@ -35,6 +35,6 @@ pub fn sseHandler(req: *httpz.Request, res: *httpz.Response) !void {
 
     try sse.patchElements(@embedFile("index.html"), .{});
 
-    res.body = sse.buffered();
+    res.body = sse.body();
     std.debug.print("Zig SSE handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
 }

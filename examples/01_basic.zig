@@ -117,7 +117,7 @@ fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
         .{},
     );
 
-    res.body = sse.buffered();
+    res.body = sse.body();
 }
 
 // create a patchElements stream, which will write commands over the SSE connection
@@ -173,7 +173,8 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
             , .{getCountAndIncrement()});
         },
     }
-    res.body = sse.buffered();
+
+    res.body = sse.body();
 }
 
 // Just reset the options form if it gets ugly
@@ -190,7 +191,8 @@ fn patchElementsOptsReset(req: *httpz.Request, res: *httpz.Response) !void {
     try sse.patchElements(@embedFile("01_index_opts.html"), .{
         .selector = "#patch-element-card",
     });
-    res.body = sse.buffered();
+
+    res.body = sse.body();
 }
 
 fn jsonSignals(_: *httpz.Request, res: *httpz.Response) !void {
@@ -220,7 +222,7 @@ fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
         .bar = bar,
     }, .{}, .{});
 
-    res.body = sse.buffered();
+    res.body = sse.body();
 
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
@@ -247,7 +249,7 @@ fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
 
     try sse.executeScript("console.log('Patched newfoo and newbar, but only if missing');", .{});
 
-    res.body = sse.buffered();
+    res.body = sse.body();
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignals").int("foo", foo).int("bar", bar).int("elapsed (μs)", t2 - t1).log();
 }
@@ -279,7 +281,8 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
         try w.print("{{ {s}: null }}", .{signals_to_remove});
     }
 
-    res.body = sse.buffered();
+    try w.flush();
+    res.body = sse.body();
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "patchSignalsRemove").string("remove", signals_to_remove).int("elapsed (μs)", t2 - t1).log();
 }
@@ -321,7 +324,8 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
         },
     }
 
-    res.body = sse.buffered();
+    res.body = sse.body();
+
     const t2 = std.time.microTimestamp();
     logz.info().string("event", "executeScript").int("sample_id", sample_id).int("elapsed (μs)", t2 - t1).log();
 }
@@ -367,8 +371,9 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
                 else => try w.writeByte(c),
             }
         }
+        try w.writeAll("\n");
     }
     try w.writeAll("</code></pre>\n");
 
-    res.body = sse.buffered();
+    res.body = sse.body();
 }

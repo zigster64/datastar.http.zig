@@ -9,9 +9,8 @@ const signals = try datastar.readSignals(opts, req);
 if (signals.morph.len < 1) {
     return;
 }
-// these are short lived updates so we close the request as soon as its done
+
 var sse = try datastar.NewSSE(req, res);
-defer sse.close();
 
 // read the signals to work out which options to set, checking the name of the
 // option vs the enum values, and add them relative to the mf-patch-opt item
@@ -43,3 +42,5 @@ switch (patch_mode) {
         , .{getCountAndIncrement()});
     },
 }
+
+res.body = sse.body();

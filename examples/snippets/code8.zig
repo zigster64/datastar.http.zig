@@ -3,9 +3,7 @@
 const sample = req.param("sample").?;
 const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
-// these are short lived updates so we close the request as soon as its done
 var sse = try datastar.NewSSE(req, res);
-defer sse.close();
 
 switch (sample_id) {
     1 => {
@@ -26,3 +24,5 @@ switch (sample_id) {
         try sse.executeScriptFmt("console.log('Unknown SampleID {d}');", .{sample_id}, .{});
     },
 }
+
+res.body = sse.body();

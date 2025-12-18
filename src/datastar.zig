@@ -63,6 +63,11 @@ pub const SSE = struct {
         return self.output_buffer.written();
     }
 
+    pub fn body(self: *SSE) []u8 {
+        self.flush() catch {};
+        return self.buffered();
+    }
+
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
         try self.flush();
         var msg: Message = undefined;
@@ -153,8 +158,6 @@ pub fn NewSSE(_: anytype, res: anytype) !SSE {
     res.content_type = .EVENTS;
     res.headers.add("Cache-Control", "no-cache");
     res.headers.add("Connection", "keep-alive");
-    // res.headers.add("Connection", "close");
-    // try res.writeHeader();
 
     const allocating_writer = try std.Io.Writer.Allocating.initCapacity(res.arena, 16 * 1024);
 

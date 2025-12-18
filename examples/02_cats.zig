@@ -99,6 +99,7 @@ pub const App = struct {
             \\</div>
         );
 
+        try w.flush();
         try sse.flush();
     }
 };
