@@ -61,7 +61,7 @@ fn index(_: *App, _: *httpz.Request, res: *httpz.Response) !void {
     res.body = @embedFile("02_index.html");
 }
 
-fn catsList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
+fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     app.mutex.lock();
     defer {
@@ -70,8 +70,11 @@ fn catsList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const stream = try res.startEventStreamSync();
-    try app.subscribe("cats", stream, App.publishCatList);
+    const sse = try datastar.NewLongSSE(req, res);
+    // try res.conn.blockingMode();
+    // try res.disown();
+
+    try app.subscribe("cats", sse.stream, App.publishCatList);
 }
 
 fn postBid(app: *App, req: *httpz.Request, _: *httpz.Response) !void {

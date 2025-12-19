@@ -40,9 +40,9 @@ pub const ExecuteScriptOptions = struct {
 
 pub const SSE = struct {
     stream: std.net.Stream, // so we can create an SSE generator over an existing stream
-    stream_writer: *std.Io.Writer,
     output_buffer: std.Io.Writer.Allocating,
     msg: ?Message = null,
+    chunked: bool = false,
 
     pub fn deinit(self: *SSE) void {
         self.output_buffer.deinit();
@@ -71,7 +71,7 @@ pub const SSE = struct {
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
         try self.flush();
         var msg: Message = undefined;
-        msg.init(.patchElements, opt, self.stream_writer, &self.output_buffer.writer);
+        msg.init(.patchElements, opt, &self.output_buffer.writer);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
@@ -81,7 +81,7 @@ pub const SSE = struct {
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
         try self.flush();
         var msg: Message = undefined;
-        msg.init(.patchElements, opt, self.stream_writer, &self.output_buffer.writer);
+        msg.init(.patchElements, opt, &self.output_buffer.writer);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
@@ -93,7 +93,7 @@ pub const SSE = struct {
             msg.swapTo(.patchElements, opt);
         } else {
             var msg: Message = undefined;
-            msg.init(.patchElements, opt, self.stream_writer, &self.output_buffer.writer);
+            msg.init(.patchElements, opt, &self.output_buffer.writer);
             self.msg = msg;
         }
         return &self.msg.?.interface;
@@ -102,7 +102,7 @@ pub const SSE = struct {
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
         try self.flush();
         var msg: Message = undefined;
-        msg.init(.patchSignals, opt, self.stream_writer, &self.output_buffer.writer);
+        msg.init(.patchSignals, opt, &self.output_buffer.writer);
         try msg.header();
 
         const json_formatter = std.json.fmt(value, json_opt);
@@ -115,7 +115,7 @@ pub const SSE = struct {
             msg.swapTo(.patchSignals, opt);
         } else {
             var msg: Message = undefined;
-            msg.init(.patchSignals, opt, self.stream_writer, &self.output_buffer.writer);
+            msg.init(.patchSignals, opt, &self.output_buffer.writer);
             self.msg = msg;
         }
         return &self.msg.?.interface;
@@ -124,7 +124,7 @@ pub const SSE = struct {
     pub fn executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void {
         try self.flush();
         var msg: Message = undefined;
-        msg.init(.executeScript, opt, self.stream_writer, &self.output_buffer.writer);
+        msg.init(.executeScript, opt, &self.output_buffer.writer);
         var w = &msg.interface;
         try msg.header();
         try w.writeAll(script);
@@ -134,7 +134,7 @@ pub const SSE = struct {
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
         try self.flush();
         var msg: Message = undefined;
-        msg.init(.executeScript, opt, self.stream_writer, &self.output_buffer.writer);
+        msg.init(.executeScript, opt, &self.output_buffer.writer);
         var w = &msg.interface;
         try msg.header();
         try w.print(script, args);
@@ -146,34 +146,56 @@ pub const SSE = struct {
             msg.swapTo(.executeScript, opt);
         } else {
             var msg: Message = undefined;
-            msg.init(.executeScript, opt, self.stream_writer, &self.output_buffer.writer);
+            msg.init(.executeScript, opt, &self.output_buffer.writer);
             self.msg = msg;
         }
         return &self.msg.?.interface;
     }
+
+    pub fn chunk(self: *SSE) !void {
+        const data = self.body();
+        if (data.len == 0) return;
+        var w = self.stream.writer(&.{});
+        try w.interface.print("{x}\r\n", .{data.len});
+        try w.interface.writeAll(data);
+        try w.interface.writeAll("\r\n");
+        try w.interface.flush();
+    }
 };
 
 pub fn NewSSE(_: anytype, res: anytype) !SSE {
-    // const stream = try res.startEventStreamSync();
     res.content_type = .EVENTS;
     res.headers.add("Cache-Control", "no-cache");
     res.headers.add("Connection", "keep-alive");
 
-    const allocating_writer = try std.Io.Writer.Allocating.initCapacity(res.arena, 16 * 1024);
+    try res.writeHeader();
 
+    const allocating_writer = std.Io.Writer.Allocating.initCapacity(res.arena, 16 * 1024) catch std.Io.Writer.Allocating.init(res.arena);
     return SSE{
         .stream = res.conn.stream,
-        .stream_writer = res.writer(),
         .output_buffer = allocating_writer,
     };
 }
 
+pub fn NewLongSSE(_: anytype, res: anytype) !SSE {
+    res.content_type = .EVENTS;
+    res.headers.add("Cache-Control", "no-cache");
+    res.headers.add("Connection", "keep-alive");
+    res.chunked = true;
+
+    try res.writeHeader();
+    try res.conn.writeAll("\r\n"); // because we are in chunked mode
+    // try res.conn.blockingMode();
+    try res.disown();
+
+    return NewSSEFromStream(res.conn.stream, res.arena);
+}
+
 pub fn NewSSEFromStream(stream: std.net.Stream, allocator: std.mem.Allocator) SSE {
-    var w = stream.writer(&.{});
     const allocating_writer = std.Io.Writer.Allocating.initCapacity(allocator, 16 * 1024) catch std.Io.Writer.Allocating.init(allocator);
     return SSE{
         .stream = stream,
-        .stream_writer = &w.interface,
+        .chunked = true,
         .output_buffer = allocating_writer,
     };
 }
@@ -193,8 +215,7 @@ pub const Message = struct {
     line_in_progress: bool = false,
     interface: std.Io.Writer,
 
-    fn init(m: *Message, comptime command: Command, opt: anytype, stream_writer: *std.Io.Writer, out_buffer: *std.Io.Writer) void {
-        m.stream_writer = stream_writer;
+    fn init(m: *Message, comptime command: Command, opt: anytype, out_buffer: *std.Io.Writer) void {
         m.out_buffer = out_buffer;
         m.command = command;
         m.interface = .{
@@ -628,7 +649,7 @@ pub fn Subscribers(comptime T: type) type {
             // for (self.stream_topics.get(stream).?.items, 0..) |t, ii| {
             //     std.debug.print("  {d} - {s}\n", .{ ii, t });
             // }
-            // std.debug.print("Total {d} topics and {d} streams tracked\n", .{ self.subs.count(), self.stream_topics.count() });
+            std.debug.print("Total {d} topics and {d} streams tracked\n", .{ self.subs.count(), self.stream_topics.count() });
         }
 
         fn purge(self: *Self, streams: StreamList) void {

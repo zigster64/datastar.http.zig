@@ -202,7 +202,8 @@ pub const App = struct {
             \\</div>
         );
 
-        try sse.flush();
+        std.debug.print("here with catlist body\n{s}\n", .{sse.body()[0..40]});
+        try sse.chunk();
     }
 
     pub fn publishPrefs(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {
@@ -222,6 +223,9 @@ pub const App = struct {
                 try sse.patchSignals(.{
                     .sort = @tagName(prefs.sort),
                 }, .{}, .{});
+
+                std.debug.print("here with patchSignals\n{s}\n", .{sse.body()});
+                try sse.chunk();
             }
         }
     }
