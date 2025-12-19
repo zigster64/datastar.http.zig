@@ -52,6 +52,21 @@ pub const SSE = struct {
         if (self.msg) |*msg| try msg.end();
     }
 
+    pub fn write(self: *SSE) !void {
+        try self.flush();
+        const data = self.output_buffer.written();
+        if (data.len == 0) return;
+        var w = self.stream.writer(&.{});
+        if (self.chunked) {
+            try w.interface.print("{x}\r\n", .{data.len});
+            try w.interface.writeAll(data);
+            try w.interface.writeAll("\r\n");
+        } else {
+            try w.interface.writeAll(data);
+        }
+        try w.interface.flush();
+    }
+
     pub fn writer(self: *Message) ?*std.Io.Writer {
         if (self.msg) |msg| {
             return &msg.interface;
@@ -151,44 +166,37 @@ pub const SSE = struct {
         }
         return &self.msg.?.interface;
     }
-
-    pub fn chunk(self: *SSE) !void {
-        const data = self.body();
-        if (data.len == 0) return;
-        var w = self.stream.writer(&.{});
-        try w.interface.print("{x}\r\n", .{data.len});
-        try w.interface.writeAll(data);
-        try w.interface.writeAll("\r\n");
-        try w.interface.flush();
-    }
 };
 
-pub fn NewSSE(_: anytype, res: anytype) !SSE {
+const SSEOptions = struct {
+    long_lived: bool = false,
+};
+
+pub fn NewSSE(req: anytype, res: anytype) !SSE {
+    return NewSSEOpt(req, res, .{});
+}
+
+pub fn NewSSEOpt(_: anytype, res: anytype, opt: SSEOptions) !SSE {
     res.content_type = .EVENTS;
     res.headers.add("Cache-Control", "no-cache");
     res.headers.add("Connection", "keep-alive");
 
+    if (opt.long_lived) res.chunked = true;
+
     try res.writeHeader();
+
+    if (opt.long_lived) {
+        try res.conn.writeAll("\r\n"); // because we are in chunked mode
+        // try res.conn.blockingMode();
+        try res.disown();
+    }
 
     const allocating_writer = std.Io.Writer.Allocating.initCapacity(res.arena, 16 * 1024) catch std.Io.Writer.Allocating.init(res.arena);
     return SSE{
         .stream = res.conn.stream,
+        .chunked = res.chunked,
         .output_buffer = allocating_writer,
     };
-}
-
-pub fn NewLongSSE(_: anytype, res: anytype) !SSE {
-    res.content_type = .EVENTS;
-    res.headers.add("Cache-Control", "no-cache");
-    res.headers.add("Connection", "keep-alive");
-    res.chunked = true;
-
-    try res.writeHeader();
-    try res.conn.writeAll("\r\n"); // because we are in chunked mode
-    // try res.conn.blockingMode();
-    try res.disown();
-
-    return NewSSEFromStream(res.conn.stream, res.arena);
 }
 
 pub fn NewSSEFromStream(stream: std.net.Stream, allocator: std.mem.Allocator) SSE {

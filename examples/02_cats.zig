@@ -99,7 +99,7 @@ pub const App = struct {
             \\</div>
         );
 
-        try sse.chunk();
+        try sse.write();
     }
 };
 

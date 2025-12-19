@@ -70,9 +70,7 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const sse = try datastar.NewLongSSE(req, res);
-    // try res.conn.blockingMode();
-    // try res.disown();
+    const sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
 
     try app.subscribe("cats", sse.stream, App.publishCatList);
 }

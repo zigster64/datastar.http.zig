@@ -243,7 +243,8 @@ pub const App = struct {
     gpa: Allocator,
     plants: [4]?Plant,
     mutex: std.Thread.Mutex,
-    subscribers: ?datastar.Subscribers(*App) = null,
+    subscribers: datastar.Subscribers(*App),
+
     // Represented in the order of (0) Carrot (1) Radish (2) Gourd (3) Onion
     crop_counts: [4]u32 = [_]u32{ 0, 0, 0, 0 },
 
@@ -269,12 +270,12 @@ pub const App = struct {
 
     // convenience function
     pub fn subscribe(app: *App, topic: []const u8, stream: Stream, callback: anytype) !void {
-        try app.subscribers.?.subscribe(topic, stream, callback);
+        try app.subscribers.subscribe(topic, stream, callback);
     }
 
     // convenience function
     pub fn publish(app: *App, topic: []const u8) !void {
-        try app.subscribers.?.publish(topic);
+        try app.subscribers.publish(topic);
     }
 
     pub fn publishPlantList(app: *App, stream: Stream, _: ?[]const u8) !void {
@@ -308,7 +309,7 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
-        try sse.flush();
+        try sse.write();
     }
 
     pub fn publishCropCounts(app: *App, stream: Stream, _: ?[]const u8) !void {
@@ -334,8 +335,9 @@ pub const App = struct {
             .onions = app.crop_counts[3],
         }, .{}, .{});
 
-        try sse.flush();
+        try sse.write();
     }
+
     pub fn updatePlants(app: *App) !void {
         var has_changes: bool = false;
         for (0..4) |i| {
