@@ -136,13 +136,6 @@ fn textHTML(res: *tk.Response) !void {
     defer {
         const t2 = std.time.microTimestamp();
         logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
-        // NOTE - you will see REALLY fast timings on these ones compared to SSE transfers
-        // but thats only because this function exits before doing any writing.
-        // It just sets the response body ... the http engine will do the writing afterwards
-        //
-        // If this function is changed to get a writer to the response, and w.print
-        // directly to the stream just like the SSE methods use,  then you will see the
-        // timings are ballpark the same as doing the SSE calls.
     }
 
     res.content_type = .HTML;
@@ -415,9 +408,10 @@ fn code(req: *tk.Request, res: *tk.Response, snip_id: u8) !void {
         .mode = .append,
     });
 
+    try w.writeAll("<pre><code>");
+
     var it = std.mem.splitAny(u8, data, "\n");
     while (it.next()) |line| {
-        try w.writeAll("<pre><code>");
         for (line) |c| {
             switch (c) {
                 '<' => try w.writeAll("&lt;"),
@@ -425,10 +419,10 @@ fn code(req: *tk.Request, res: *tk.Response, snip_id: u8) !void {
                 ' ' => try w.writeAll("&nbsp;"),
                 else => try w.writeByte(c),
             }
-            try w.writeAll("\n");
         }
-        try w.writeAll("</code></pre>\n");
+        try w.writeAll("\n");
     }
+    try w.writeAll("</code></pre>\n");
 
     res.body = sse.body();
 }
