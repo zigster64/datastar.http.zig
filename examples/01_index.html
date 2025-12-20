@@ -59,6 +59,8 @@
       href="#patch-signals-remove-page" title="Patch Signals - Remove">7<br><small>SignalRemove</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
       href="#execute-script-page" title="Execute Script">8<br><small>Script</small></a>
+    <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
+      href="#svg-morph-page" title="Svg Morph">8<br><small>SVG Morph</small></a>
   </div>
   <!--carousel container-->
   <div class="carousel rounded-box w-screen h-3/4">
@@ -247,6 +249,59 @@
             </div>
           </details>
         </div>
+      </div>
+    </div>
+    <div id="svg-morph-page" class="carousel-item w-full h-full flex justify-center items-center">
+      <div class="card w-8/12 bg-slate-300 card-lg shadow-sm m-auto">
+        <div class="card-body items-center text-center">
+          <h2 class="card-title text-neutral">(9) SVG Namespace Morphing</h2>
+
+          <div class="bg-white p-4 rounded-xl shadow-inner my-4">
+            <svg id="svg-stage" viewBox="0 0 200 200" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <circle id="svg-circle" cx="50" cy="50" r="40" class="fill-red-500 transition-all duration-500" />
+
+              <rect id="svg-square" x="110" y="10" width="80" height="80"
+                class="fill-green-500 transition-all duration-500" />
+
+              <polygon id="svg-triangle" points="100,110 150,190 50,190"
+                class="fill-blue-500 transition-all duration-500" />
+            </svg>
+          </div>
+
+          <p class="text-sm opacity-70">Testing <code>useNamespace true</code> to morph SVG children</p>
+
+          <div class="justify-end card-actions w-full">
+            <div class="w-full max-w-xs">
+              Iterations
+              <input type="range" min="1" max="100" value="1" class="range" step="1" data-bind:svg-morph />
+              <div class="flex justify-between px-2.5 mt-2 text-xs">
+                <span>|</span>
+                <span>|</span>
+                <span>|</span>
+                <span>|</span>
+                <span>|</span>
+              </div>
+              <div class="flex justify-between px-2.5 mt-2 text-xs">
+                <span>1</span>
+                <span>25</span>
+                <span>50</span>
+                <span>75</span>
+                <span>100</span>
+              </div>
+            </div>
+            <button class="btn btn-primary w-full"
+              data-on:click="@get('/svg-morph', {retryMaxCount: 0, retryInterval: 999999999, retry: 'error'})">
+              Morph SVG Elements
+            </button>
+          </div>
+        </div>
+
+        <details class="collapse bg-base-100 border-base-300 border">
+          <summary class="collapse-title font-semibold">Show Code</summary>
+          <div class="collapse-content text-sm" data-init="@get('/code/9')">
+            <div id='code-9' class='mockup-code w-full'></div>
+          </div>
+        </details>
       </div>
     </div>
   </div>

@@ -61,6 +61,7 @@ pub fn main() !void {
     router.get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing, .{});
     router.get("/patch/signals/remove/:names", patchSignalsRemove, .{});
     router.get("/executescript/:sample", executeScript, .{});
+    router.get("/svg-morph", svgMorph, .{});
 
     router.get("/code/:snip", code, .{});
 
@@ -310,6 +311,55 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "executeScript").int("sample_id", sample_id).int("elapsed (μs)", t2 - t1).log();
 }
 
+// output some morphs to the SVG elements using svg namespace
+fn svgMorph(req: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "svgMorph").int("elapsed (μs)", t2 - t1).log();
+    }
+
+    const SVGMorphOptions = struct {
+        svgMorph: usize = 1,
+    };
+    const opt = blk: {
+        break :blk datastar.readSignals(SVGMorphOptions, req) catch break :blk SVGMorphOptions{ .svgMorph = 5 };
+    };
+    var sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
+    defer sse.close(res);
+
+    for (1..opt.svgMorph + 1) |_| {
+        try sse.patchElementsFmt(
+            \\<svg id="svg-stage" class="w-full h-full" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            \\  <circle id="svg-circle" cx="{}" cy="{}" r="{}" class="fill-red-500 transition-all duration-200" />
+            \\  <rect id="svg-square" x="{}" y="{}" width="{}" height="80" class="fill-green-500 transition-all duration-200" />
+            \\  <polygon id="svg-triangle" points="{},{} {},{} {},{}" class="fill-blue-500 transition-all duration-200" />
+            \\</svg>
+        ,
+            .{
+                // cicrle x y r
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 80),
+                // rectangle x y width
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 80),
+                // triangle random points
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+            },
+            .{ .namespace = .svg },
+        );
+        try sse.writeAll();
+        std.Thread.sleep(std.time.ns_per_ms * 100);
+    }
+}
+
 const snippets = [_][]const u8{
     @embedFile("snippets/code1.zig"),
     @embedFile("snippets/code2.zig"),
@@ -319,6 +369,7 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code6.zig"),
     @embedFile("snippets/code7.zig"),
     @embedFile("snippets/code8.zig"),
+    @embedFile("snippets/code9.zig"),
 };
 
 fn code(req: *httpz.Request, res: *httpz.Response) !void {

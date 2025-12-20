@@ -69,9 +69,14 @@ pub const SSE = struct {
     /// on close(), this will populate the response body the call res.write()
     /// which will output both the header and the body using async IO
     pub fn close(self: *SSE, res: anytype) void {
-        std.debug.assert(!self.opt.long_lived); // dont call close() on long lived connections
-        std.debug.assert(!self.chunked); // short lived connections rely on the response to handle chunking
-        res.body = self.body();
+        if (self.chunked) {
+            var w = self.stream.writer(&.{});
+            w.interface.writeAll("0\r\n\r\n") catch {};
+            w.interface.flush() catch {};
+            self.stream.close();
+        } else {
+            res.body = self.body();
+        }
     }
 
     /// writeAll will write the contents of the event stream buffer to the underlying stream
@@ -79,7 +84,7 @@ pub const SSE = struct {
     /// otherwise - do all the writing by simply calling sse.close(res) on event streams that is not long lived
     /// which happens as part of the close procedure
     pub fn writeAll(self: *SSE) !void {
-        std.debug.assert(self.opt.long_lived); // only call writeAll() from long lived sse please
+        std.debug.assert(self.opt.long_lived); // only call writeAll() from long lived
         try self.flush();
         const data = self.output_buffer.written();
         if (data.len == 0) return;
@@ -93,6 +98,7 @@ pub const SSE = struct {
             try w.interface.writeAll(data);
         }
         try w.interface.flush();
+        _ = self.output_buffer.writer.consume(data.len);
     }
 
     pub fn writer(self: *Message) ?*std.Io.Writer {
