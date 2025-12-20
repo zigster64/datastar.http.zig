@@ -4,6 +4,7 @@ const signals_to_remove: []const u8 = req.param("names").?;
 var names_iter = std.mem.splitScalar(u8, signals_to_remove, ',');
 
 var sse = try datastar.NewSSE(req, res);
+defer sse.close(res);
 
 var w = sse.patchSignalsWriter(.{});
 
@@ -20,5 +21,3 @@ if (first) |val| {
 } else {
     try w.print("{{ {s}: null }}", .{signals_to_remove});
 }
-
-res.body = sse.body();

@@ -99,7 +99,6 @@ fn plantList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     const sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
-
     try app.subscribe("plants", sse.stream, App.publishPlantList);
     try app.subscribe("crops", sse.stream, App.publishCropCounts);
 }

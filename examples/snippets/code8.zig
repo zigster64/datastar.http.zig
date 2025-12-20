@@ -4,6 +4,7 @@ const sample = req.param("sample").?;
 const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
 var sse = try datastar.NewSSE(req, res);
+defer sse.close(res);
 
 switch (sample_id) {
     1 => {
@@ -24,5 +25,3 @@ switch (sample_id) {
         try sse.executeScriptFmt("console.log('Unknown SampleID {d}');", .{sample_id}, .{});
     },
 }
-
-res.body = sse.body();

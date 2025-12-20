@@ -259,12 +259,14 @@ patching elements, patching signals, executing scripts, etc.
 
 When you are finished with the SSE object, you should either :
 
-- Call `sse.close()` if you are done and want to close the connection as part of your handler.
+- Call `sse.close(res)` if you are done and want to close the connection as part of your handler.
 
 - Otherwise, the SSE connection is left open after you exit your handler function. In this case, you can 
   access the `sse.stream: std.net.Stream` value and store it somewhere for additional updates over that open connection. 
 
-- This Zig SDK also includes a simple Pub/Sub subsystem that takes care o  tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
+- If you want to leave SSE connections open after exiting the handler, then use `NewSSEOpt(req, res, .{.long_lived = true})` instead.
+
+- This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
 
 
 
@@ -360,7 +362,7 @@ Example handler (from `examples/01_basic.zig`)
 ```zig
 fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     try sse.patchElementsFmt(
         \\<p id="mf-patch">This is update number {d}</p>
@@ -400,7 +402,7 @@ Example handler (from `examples/01_basic.zig`)
 ```zig
 fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
@@ -449,7 +451,7 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     const value = req.param("value"); // can be null
 
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     try sse.executeScriptFmt("console.log('You asked me to print {s}')"", .{
             value orelse "nothing at all",

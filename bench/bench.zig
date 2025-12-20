@@ -32,9 +32,9 @@ pub fn handlerLogged(_: *httpz.Request, res: *httpz.Response) !void {
 pub fn sseHandler(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     var sse = try datastar.NewSSE(req, res);
+    defer sse.close(res);
 
     try sse.patchElements(@embedFile("index.html"), .{});
 
-    res.body = sse.body();
     std.debug.print("Zig SSE handler took {} microseconds\n", .{std.time.microTimestamp() - t1});
 }

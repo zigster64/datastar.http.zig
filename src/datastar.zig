@@ -38,11 +38,17 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
+const SSEOptions = struct {
+    long_lived: bool = false,
+    buffer_size: usize = 16 * 1024,
+};
+
 pub const SSE = struct {
     stream: std.net.Stream, // so we can create an SSE generator over an existing stream
     output_buffer: std.Io.Writer.Allocating,
     msg: ?Message = null,
     chunked: bool = false,
+    opt: SSEOptions = .{},
 
     pub fn deinit(self: *SSE) void {
         self.output_buffer.deinit();
@@ -52,10 +58,25 @@ pub const SSE = struct {
         if (self.msg) |*msg| try msg.end();
     }
 
-    pub fn write(self: *SSE) !void {
+    /// close() is used for short lived SSE only
+    /// on close(), this will populate the response body the call res.write()
+    /// which will output both the header and the body using async IO
+    pub fn close(self: *SSE, res: anytype) void {
+        std.debug.assert(!self.opt.long_lived); // dont call close() on long lived connections
+        std.debug.assert(!self.chunked); // short lived connections rely on the response to handle chunking
+        res.body = self.body();
+    }
+
+    /// writeAll will write the contents of the event stream buffer to the underlying stream
+    /// ONLY call this from an sse that is long lived, and therefore detached from the http.Response
+    /// otherwise - do all the writing by simply calling sse.close(res) on event streams that is not long lived
+    /// which happens as part of the close procedure
+    pub fn writeAll(self: *SSE) !void {
+        std.debug.assert(self.opt.long_lived); // only call writeAll() from long lived sse please
         try self.flush();
         const data = self.output_buffer.written();
         if (data.len == 0) return;
+
         var w = self.stream.writer(&.{});
         if (self.chunked) {
             try w.interface.print("{x}\r\n", .{data.len});
@@ -168,10 +189,6 @@ pub const SSE = struct {
     }
 };
 
-const SSEOptions = struct {
-    long_lived: bool = false,
-};
-
 pub fn NewSSE(req: anytype, res: anytype) !SSE {
     return NewSSEOpt(req, res, .{});
 }
@@ -181,21 +198,29 @@ pub fn NewSSEOpt(_: anytype, res: anytype, opt: SSEOptions) !SSE {
     res.headers.add("Cache-Control", "no-cache");
     res.headers.add("Connection", "keep-alive");
 
-    if (opt.long_lived) res.chunked = true;
-
-    try res.writeHeader();
-
+    // For short lived SSE
+    //   the header and body are both written out when sse.close(res) is called,
+    //   which uses the async writer, no chunking, and a known content length
+    // For long lived SSE
+    //   we take ownership of the socket, and disconnect it from the async routines
+    //   then set chunked encoding, and apply chunking manually in the sse object
     if (opt.long_lived) {
-        try res.conn.writeAll("\r\n"); // because we are in chunked mode
-        // try res.conn.blockingMode();
+        res.headers.add("Transfer-Encoding", "chunked");
+        try res.conn.blockingMode();
+        try res.writeHeader();
+        // try res.conn.writeAll("\r\n"); // because we are in chunked mode
         try res.disown();
     }
 
-    const allocating_writer = std.Io.Writer.Allocating.initCapacity(res.arena, 16 * 1024) catch std.Io.Writer.Allocating.init(res.arena);
+    const allocating_writer = blk: {
+        if (opt.long_lived or opt.buffer_size == 0) break :blk std.Io.Writer.Allocating.init(res.arena);
+        break :blk std.Io.Writer.Allocating.initCapacity(res.arena, opt.buffer_size) catch std.Io.Writer.Allocating.init(res.arena);
+    };
     return SSE{
         .stream = res.conn.stream,
-        .chunked = res.chunked,
+        .chunked = opt.long_lived,
         .output_buffer = allocating_writer,
+        .opt = opt,
     };
 }
 
@@ -205,6 +230,7 @@ pub fn NewSSEFromStream(stream: std.net.Stream, allocator: std.mem.Allocator) SS
         .stream = stream,
         .chunked = true,
         .output_buffer = allocating_writer,
+        .opt = .{ .long_lived = true },
     };
 }
 
@@ -378,17 +404,16 @@ pub const Message = struct {
         var rest = bytes;
 
         while (std.mem.indexOfScalar(u8, rest, '\n')) |idx| {
-            const line = rest[0..idx];
+            const line = rest[0 .. idx + 1];
 
             // Start a line if we aren't already in one
             if (!self.line_in_progress) {
                 try stream_writer.writeAll(prefix);
             }
-            try stream_writer.writeAll(line);
-            try stream_writer.writeAll("\n");
+            try stream_writer.writeAll(line); // includes \n
             self.line_in_progress = false;
 
-            // Advance past the newline
+            // Advance past the newline, if there is more
             rest = rest[idx + 1 ..];
         }
 
@@ -398,25 +423,9 @@ pub const Message = struct {
                 self.line_in_progress = true;
             }
             try stream_writer.writeAll(rest);
-            try stream_writer.writeAll("\n");
         }
 
         return bytes.len;
-    }
-
-    fn writeAllIOVec(writer: *std.Io.Writer, vec: [][]const u8) !void {
-        var i: usize = 0;
-        while (true) {
-            var n = writer.writeVec(vec[i..]) catch return error.WriteFailed;
-            while (n >= vec[i].len) {
-                n -= vec[i].len;
-                i += 1;
-                if (i >= vec.len) {
-                    return writer.flush();
-                }
-            }
-            vec[i] = vec[i][n..];
-        }
     }
 };
 

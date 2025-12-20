@@ -127,7 +127,9 @@
       </h2>
     </div>
   </div>
-  <div id="plant-list" data-init="@get('/plants')">...Loading Plants</div>
+  <div data-init="@get('/plants')">
+    <div id="plant-list">...Loading Plants</div>
+  </div>
   <div id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center">
     <img data-on:click="$hand == 'watering' ? $hand = 'empty' :  $hand = 'watering';"
       data-class:selected="$hand == 'watering';" class="w-16 rounded-md"

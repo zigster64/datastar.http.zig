@@ -212,7 +212,7 @@ pub const App = struct {
             \\</div>
         );
 
-        try sse.write();
+        try sse.writeAll();
     }
 
     pub fn publishPrefs(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {
@@ -233,7 +233,7 @@ pub const App = struct {
                     .sort = @tagName(prefs.sort),
                 }, .{}, .{});
 
-                try sse.write();
+                try sse.writeAll();
             }
         }
     }

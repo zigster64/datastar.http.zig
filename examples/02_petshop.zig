@@ -71,7 +71,6 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     }
 
     const sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
-
     try app.subscribe("cats", sse.stream, App.publishCatList);
 }
 

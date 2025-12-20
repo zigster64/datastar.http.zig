@@ -309,7 +309,7 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
-        try sse.write();
+        try sse.writeAll();
     }
 
     pub fn publishCropCounts(app: *App, stream: Stream, _: ?[]const u8) !void {
@@ -335,7 +335,7 @@ pub const App = struct {
             .onions = app.crop_counts[3],
         }, .{}, .{});
 
-        try sse.write();
+        try sse.writeAll();
     }
 
     pub fn updatePlants(app: *App) !void {
