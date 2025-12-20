@@ -15,12 +15,19 @@ pub const PatchMode = enum {
     remove,
 };
 
+pub const NameSpace = enum {
+    html,
+    svg,
+    mathml,
+};
+
 pub const PatchElementsOptions = struct {
     mode: PatchMode = .outer,
     selector: ?[]const u8 = null,
     view_transition: bool = false,
     event_id: ?[]const u8 = null,
     retry_duration: ?i64 = null,
+    namespace: NameSpace = .html,
 };
 
 pub const PatchSignalsOptions = struct {
@@ -334,6 +341,11 @@ pub const Message = struct {
                 switch (mt) {
                     .outer => {},
                     else => try w.print("data: mode {t}\n", .{mt}),
+                }
+                switch (self.patch_element_options.namespace) {
+                    .html => {},
+                    .svg => try w.writeAll("data: namespace svg\n"),
+                    .mathml => try w.writeAll("data: namespace mathml\n"),
                 }
             },
             .patchSignals => {
