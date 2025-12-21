@@ -60,7 +60,9 @@
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
       href="#execute-script-page" title="Execute Script">8<br><small>Script</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#svg-morph-page" title="Svg Morph">8<br><small>SVG Morph</small></a>
+      href="#svg-morph-page" title="Svg Morph">9<br><small>SVG Morph</small></a>
+    <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
+      href="#mathml-morph-page" title="MathML Morph">10<br><small>MathML Morph</small></a>
   </div>
   <!--carousel container-->
   <div class="carousel rounded-box w-screen h-3/4">
@@ -268,7 +270,7 @@
             </svg>
           </div>
 
-          <p class="text-sm opacity-70">Testing <code>useNamespace true</code> to morph SVG children</p>
+          <p class="text-sm opacity-70">patchElements.namespace = .svg to morph SVG children</p>
 
           <div class="justify-end card-actions w-full">
             <div class="w-full max-w-xs">
@@ -304,6 +306,61 @@
         </details>
       </div>
     </div>
+    <div id="mathml-morph-page" class="carousel-item w-full h-full flex justify-center items-center">
+      <div class="card w-8/12 bg-slate-300 card-lg shadow-sm m-auto">
+        <div class="card-body items-center text-center">
+          <h2 class="card-title text-neutral">(10) MathML Namespace Morphing</h2>
+          <div
+            class="w-full max-w-md aspect-video bg-white p-8 rounded-xl shadow-inner my-4 flex justify-center items-center text-3xl overflow-hidden transition-duration-500">
+            <math id="math-ml" display="block" class="animate-in fade-in duration-500">
+              <mrow>
+                <mi>E</mi>
+                <mo>=</mo>
+                <mi>m</mi>
+                <msup>
+                  <mi>c</mi>
+                  <mn>2</mn>
+                </msup>
+              </mrow>
+            </math>
+          </div>
+
+          <p class="text-sm opacity-70">patchElements.namespace = .mathml to morph MathML children</p>
+
+          <div class="justify-end card-actions w-full">
+            <div class="w-full max-w-xs">
+              Iterations
+              <input type="range" min="1" max="100" value="1" class="range" step="1" data-bind:mathml-morph />
+              <div class="flex justify-between px-2.5 mt-2 text-xs">
+                <span>|</span>
+                <span>|</span>
+                <span>|</span>
+                <span>|</span>
+                <span>|</span>
+              </div>
+              <div class="flex justify-between px-2.5 mt-2 text-xs">
+                <span>1</span>
+                <span>25</span>
+                <span>50</span>
+                <span>75</span>
+                <span>100</span>
+              </div>
+            </div>
+            <button class="btn btn-primary w-full"
+              data-on:click="@get('/mathml-morph', {retryMaxCount: 0, retryInterval: 999999999, retry: 'error'})">
+              Morph MATHML Elements
+            </button>
+          </div>
+        </div>
+
+        <details class="collapse bg-base-100 border-base-300 border">
+          <summary class="collapse-title font-semibold">Show Code</summary>
+          <div class="collapse-content text-sm" data-init="@get('/code/10')">
+            <div id='code-10' class='mockup-code w-full'></div>
+          </div>
+        </details>
+      </div>
+    </div> // end svg morph
   </div>
   <!-- top header div is fixed height 32, so place this 2 below ... hacky but works -->
   <!--<div class="hero min-h-screen bg-cover bg-center bg-no-repeat relative"> Your real content goes here -->

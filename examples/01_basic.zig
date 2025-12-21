@@ -2,6 +2,7 @@ const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
 const datastar = @import("datastar");
+const rebooter = @import("rebooter.zig");
 const Allocator = std.mem.Allocator;
 
 const PORT = 8081;
@@ -26,6 +27,12 @@ fn getCountAndIncrement() usize {
 pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
+    defer {
+        const check = gpa.deinit();
+        if (check == .leak) {
+            std.debug.print("Leak Detected\n", .{});
+        }
+    }
 
     var server = try httpz.Server(void).init(allocator, .{
         .port = PORT,
@@ -62,8 +69,11 @@ pub fn main() !void {
     router.get("/patch/signals/remove/:names", patchSignalsRemove, .{});
     router.get("/executescript/:sample", executeScript, .{});
     router.get("/svg-morph", svgMorph, .{});
+    router.get("/mathml-morph", mathMorph, .{});
 
     router.get("/code/:snip", code, .{});
+
+    try rebooter.start(allocator);
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     std.debug.print("... or any other IP address pointing to this machine\n", .{});
@@ -319,11 +329,12 @@ fn svgMorph(req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "svgMorph").int("elapsed (μs)", t2 - t1).log();
     }
 
+    prng.seed(std.time.timestamp());
     const SVGMorphOptions = struct {
         svgMorph: usize = 1,
     };
     const opt = blk: {
-        break :blk datastar.readSignals(SVGMorphOptions, req) catch break :blk SVGMorphOptions{ .svgMorph = 5 };
+        break :blk datastar.readSignals(SVGMorphOptions, req) catch break :blk SVGMorphOptions{ .svgMorph = 1 };
     };
     var sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
     defer sse.close(res);
@@ -331,9 +342,9 @@ fn svgMorph(req: *httpz.Request, res: *httpz.Response) !void {
     for (1..opt.svgMorph + 1) |_| {
         try sse.patchElementsFmt(
             \\<svg id="svg-stage" class="w-full h-full" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            \\  <circle id="svg-circle" cx="{}" cy="{}" r="{}" class="fill-red-500 transition-all duration-200" />
-            \\  <rect id="svg-square" x="{}" y="{}" width="{}" height="80" class="fill-green-500 transition-all duration-200" />
-            \\  <polygon id="svg-triangle" points="{},{} {},{} {},{}" class="fill-blue-500 transition-all duration-200" />
+            \\  <circle id="svg-circle" cx="{}" cy="{}" r="{}" class="fill-red-500 transition-all duration-500" />
+            \\  <rect id="svg-square" x="{}" y="{}" width="{}" height="80" class="fill-green-500 transition-all duration-500" />
+            \\  <polygon id="svg-triangle" points="{},{} {},{} {},{}" class="fill-blue-500 transition-all duration-500" />
             \\</svg>
         ,
             .{
@@ -356,7 +367,47 @@ fn svgMorph(req: *httpz.Request, res: *httpz.Response) !void {
             .{ .namespace = .svg },
         );
         try sse.writeAll();
-        std.Thread.sleep(std.time.ns_per_ms * 100);
+        std.Thread.sleep(std.time.ns_per_ms * 500);
+    }
+}
+
+const mathMLs = [_][]const u8{
+    @embedFile("snippets/math1.html"),
+    @embedFile("snippets/math2.html"),
+    @embedFile("snippets/math3.html"),
+    @embedFile("snippets/math4.html"),
+    @embedFile("snippets/math5.html"),
+    @embedFile("snippets/math6.html"),
+    @embedFile("snippets/math7.html"),
+    @embedFile("snippets/math8.html"),
+    @embedFile("snippets/math9.html"),
+    @embedFile("snippets/math10.html"),
+    @embedFile("snippets/math11.html"),
+};
+
+// output some random MathML
+fn mathMorph(req: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "mathMorph").int("elapsed (μs)", t2 - t1).log();
+    }
+
+    prng.seed(std.time.timestamp());
+    const MathMorphOptions = struct {
+        mathmlMorph: usize = 1,
+    };
+    const opt = blk: {
+        break :blk datastar.readSignals(MathMorphOptions, req) catch break :blk MathMorphOptions{ .mathmlMorph = 1 };
+    };
+    var sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
+    defer sse.close(res);
+
+    for (1..opt.mathmlMorph + 1) |_| {
+        const i = prng.random().intRangeAtMost(u8, 1, mathMLs.len);
+        try sse.patchElements(mathMLs[i - 1], .{ .namespace = .mathml, .view_transition = true });
+        try sse.writeAll();
+        std.Thread.sleep(std.time.ns_per_ms * 500);
     }
 }
 
@@ -370,6 +421,7 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code7.zig"),
     @embedFile("snippets/code8.zig"),
     @embedFile("snippets/code9.zig"),
+    @embedFile("snippets/code10.zig"),
 };
 
 fn code(req: *httpz.Request, res: *httpz.Response) !void {
@@ -377,6 +429,7 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
     const snip_id = try std.fmt.parseInt(u8, snip, 10);
 
     if (snip_id < 1 or snip_id > snippets.len) {
+        std.debug.print("Invalid code snippet {}, range is 1-{}\n", .{ snip_id, snippets.len });
         return error.InvalidCodeSnippet;
     }
 
