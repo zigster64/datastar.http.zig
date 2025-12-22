@@ -60,9 +60,9 @@
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
       href="#execute-script-page" title="Execute Script">8<br><small>Script</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#svg-morph-page" title="Svg Morph">9<br><small>SVG Morph</small></a>
+      href="#svg-morph-page" title="Svg Morph">9<br><small>SVG</small></a>
     <a class="text-xl text-center p-4 rounded-md bg-blue-400 border-solid border-gray-700 border-2"
-      href="#mathml-morph-page" title="MathML Morph">10<br><small>MathML Morph</small></a>
+      href="#mathml-morph-page" title="MathML Morph">10<br><small>MathML</small></a>
   </div>
   <!--carousel container-->
   <div class="carousel rounded-box w-screen h-3/4">
@@ -291,8 +291,7 @@
                 <span>100</span>
               </div>
             </div>
-            <button class="btn btn-primary w-full"
-              data-on:click="@get('/svg-morph', {retryMaxCount: 0, retryInterval: 999999999, retry: 'error'})">
+            <button class="btn btn-primary w-full" data-on:click="@get('/svg-morph')">
               Morph SVG Elements
             </button>
           </div>
@@ -307,7 +306,7 @@
       </div>
     </div>
     <div id="mathml-morph-page" class="carousel-item w-full h-full flex justify-center items-center">
-      <div class="card w-8/12 bg-slate-300 card-lg shadow-sm m-auto">
+      <div class="card w-10/12 bg-slate-300 card-lg shadow-sm m-auto">
         <div class="card-body items-center text-center">
           <h2 class="card-title text-neutral">(10) MathML Namespace Morphing</h2>
           <div
@@ -319,7 +318,7 @@
                 <mi>m</mi>
                 <msup>
                   <mi>c</mi>
-                  <mn>2</mn>
+                  <mn id="math-factor">2</mn>
                 </msup>
               </mrow>
             </math>
@@ -329,8 +328,9 @@
 
           <div class="justify-end card-actions w-full">
             <div class="w-full max-w-xs">
-              Iterations
-              <input type="range" min="1" max="100" value="1" class="range" step="1" data-bind:mathml-morph />
+              Spin for Random Equation
+              <input type="range" min="1" max="20" value="1" class="range" step="1" data-bind:mathml-morph
+                data-on:change="@get('/mathml-morph')">
               <div class="flex justify-between px-2.5 mt-2 text-xs">
                 <span>|</span>
                 <span>|</span>
@@ -340,14 +340,13 @@
               </div>
               <div class="flex justify-between px-2.5 mt-2 text-xs">
                 <span>1</span>
-                <span>25</span>
-                <span>50</span>
-                <span>75</span>
-                <span>100</span>
+                <span>5</span>
+                <span>10</span>
+                <span>15</span>
+                <span>20</span>
               </div>
             </div>
-            <button class="btn btn-primary w-full"
-              data-on:click="@get('/mathml-morph', {retryMaxCount: 0, retryInterval: 999999999, retry: 'error'})">
+            <button class="btn btn-primary w-full" data-on:click="@get('/mathml-morph')">
               Morph MATHML Elements
             </button>
           </div>

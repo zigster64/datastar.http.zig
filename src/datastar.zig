@@ -45,8 +45,13 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
+const SSEMode = enum {
+    batch,
+    sync,
+};
+
 const SSEOptions = struct {
-    long_lived: bool = false,
+    mode: SSEMode = .batch,
     buffer_size: usize = 16 * 1024,
 };
 
@@ -54,22 +59,38 @@ pub const SSE = struct {
     stream: std.net.Stream, // so we can create an SSE generator over an existing stream
     output_buffer: std.Io.Writer.Allocating,
     msg: ?Message = null,
-    chunked: bool = false,
-    opt: SSEOptions = .{},
+    mode: SSEMode = .batch,
+    buffer_size: usize = 16 * 1024,
 
     pub fn deinit(self: *SSE) void {
+        self.flush() catch {};
         self.output_buffer.deinit();
     }
 
     pub fn flush(self: *SSE) !void {
         if (self.msg) |*msg| try msg.end();
+        if (self.mode == .sync) {
+            // in sync mode, bit more work to do yet, as we are responsible
+            // for writing all the converted bytes out to the network, and
+            // doing the chunked encoding ourselves
+            const data = self.output_buffer.written();
+            if (data.len == 0) return;
+
+            var w = self.stream.writer(&.{});
+            try w.interface.print("{x}\r\n", .{data.len});
+            try w.interface.writeAll(data);
+            try w.interface.writeAll("\r\n");
+            try w.interface.flush();
+            _ = self.output_buffer.writer.consume(data.len);
+        }
     }
 
     /// close() is used for short lived SSE only
     /// on close(), this will populate the response body the call res.write()
     /// which will output both the header and the body using async IO
     pub fn close(self: *SSE, res: anytype) void {
-        if (self.chunked) {
+        self.flush() catch {};
+        if (self.mode == .sync) {
             var w = self.stream.writer(&.{});
             w.interface.writeAll("0\r\n\r\n") catch {};
             w.interface.flush() catch {};
@@ -77,28 +98,6 @@ pub const SSE = struct {
         } else {
             res.body = self.body();
         }
-    }
-
-    /// writeAll will write the contents of the event stream buffer to the underlying stream
-    /// ONLY call this from an sse that is long lived, and therefore detached from the http.Response
-    /// otherwise - do all the writing by simply calling sse.close(res) on event streams that is not long lived
-    /// which happens as part of the close procedure
-    pub fn writeAll(self: *SSE) !void {
-        std.debug.assert(self.opt.long_lived); // only call writeAll() from long lived
-        try self.flush();
-        const data = self.output_buffer.written();
-        if (data.len == 0) return;
-
-        var w = self.stream.writer(&.{});
-        if (self.chunked) {
-            try w.interface.print("{x}\r\n", .{data.len});
-            try w.interface.writeAll(data);
-            try w.interface.writeAll("\r\n");
-        } else {
-            try w.interface.writeAll(data);
-        }
-        try w.interface.flush();
-        _ = self.output_buffer.writer.consume(data.len);
     }
 
     pub fn writer(self: *Message) ?*std.Io.Writer {
@@ -118,23 +117,23 @@ pub const SSE = struct {
     }
 
     pub fn patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void {
-        try self.flush();
         var msg: Message = undefined;
         msg.init(.patchElements, opt, &self.output_buffer.writer);
         try msg.header();
         var w = &msg.interface;
         try w.writeAll(elements);
         try msg.end();
+        try self.flush();
     }
 
     pub fn patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void {
-        try self.flush();
         var msg: Message = undefined;
         msg.init(.patchElements, opt, &self.output_buffer.writer);
         try msg.header();
         var w = &msg.interface;
         try w.print(elements, args);
         try msg.end();
+        try self.flush();
     }
 
     pub fn patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer {
@@ -149,7 +148,6 @@ pub const SSE = struct {
     }
 
     pub fn patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void {
-        try self.flush();
         var msg: Message = undefined;
         msg.init(.patchSignals, opt, &self.output_buffer.writer);
         try msg.header();
@@ -157,6 +155,7 @@ pub const SSE = struct {
         const json_formatter = std.json.fmt(value, json_opt);
         try json_formatter.format(&msg.interface);
         try msg.end();
+        try self.flush();
     }
 
     pub fn patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer {
@@ -178,6 +177,7 @@ pub const SSE = struct {
         try msg.header();
         try w.writeAll(script);
         try msg.end();
+        try self.flush();
     }
 
     pub fn executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void {
@@ -188,6 +188,7 @@ pub const SSE = struct {
         try msg.header();
         try w.print(script, args);
         try msg.end();
+        try self.flush();
     }
 
     pub fn executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer {
@@ -206,34 +207,37 @@ pub fn NewSSE(req: anytype, res: anytype) !SSE {
     return NewSSEOpt(req, res, .{});
 }
 
+pub fn NewSSESync(req: anytype, res: anytype) !SSE {
+    return NewSSEOpt(req, res, .{ .mode = .sync });
+}
+
 pub fn NewSSEOpt(_: anytype, res: anytype, opt: SSEOptions) !SSE {
     res.content_type = .EVENTS;
     res.headers.add("Cache-Control", "no-cache");
     res.headers.add("Connection", "keep-alive");
 
-    // For short lived SSE
+    // For Batch mode SSE
     //   the header and body are both written out when sse.close(res) is called,
     //   which uses the async writer, no chunking, and a known content length
-    // For long lived SSE
+    // For Sync mode SSE
     //   we take ownership of the socket, and disconnect it from the async routines
     //   then set chunked encoding, and apply chunking manually in the sse object
-    if (opt.long_lived) {
+    if (opt.mode == .sync) {
         res.headers.add("Transfer-Encoding", "chunked");
         try res.conn.blockingMode();
         try res.writeHeader();
-        // try res.conn.writeAll("\r\n"); // because we are in chunked mode
         try res.disown();
     }
 
     const allocating_writer = blk: {
-        if (opt.long_lived or opt.buffer_size == 0) break :blk std.Io.Writer.Allocating.init(res.arena);
+        if (opt.mode == .sync or opt.buffer_size == 0) break :blk std.Io.Writer.Allocating.init(res.arena);
         break :blk std.Io.Writer.Allocating.initCapacity(res.arena, opt.buffer_size) catch std.Io.Writer.Allocating.init(res.arena);
     };
     return SSE{
         .stream = res.conn.stream,
-        .chunked = opt.long_lived,
         .output_buffer = allocating_writer,
-        .opt = opt,
+        .mode = opt.mode,
+        .buffer_size = opt.buffer_size,
     };
 }
 
@@ -241,9 +245,9 @@ pub fn NewSSEFromStream(stream: std.net.Stream, allocator: std.mem.Allocator) SS
     const allocating_writer = std.Io.Writer.Allocating.initCapacity(allocator, 16 * 1024) catch std.Io.Writer.Allocating.init(allocator);
     return SSE{
         .stream = stream,
-        .chunked = true,
         .output_buffer = allocating_writer,
-        .opt = .{ .long_lived = true },
+        .buffer_size = 0,
+        .mode = .sync,
     };
 }
 

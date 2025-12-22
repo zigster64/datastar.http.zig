@@ -99,7 +99,7 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var cookies = req.cookies();
     if (cookies.get("session")) |session| {
         // validated session
-        const sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
+        const sse = try datastar.NewSSESync(req, res);
         try app.subscribeSession("cats", sse.stream, App.publishCatList, session);
         try app.subscribeSession("prefs", sse.stream, App.publishPrefs, session);
     } else {

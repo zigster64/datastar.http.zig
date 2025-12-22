@@ -98,7 +98,7 @@ fn plantList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "plantsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
+    const sse = try datastar.NewSSESync(req, res);
     try app.subscribe("plants", sse.stream, App.publishPlantList);
     try app.subscribe("crops", sse.stream, App.publishCropCounts);
 }

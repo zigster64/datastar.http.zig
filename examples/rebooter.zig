@@ -29,7 +29,11 @@ fn watchLoop(gpa: std.mem.Allocator) !void {
         std.Thread.sleep(2 * std.time.ns_per_s);
 
         const stat = cwd.statFile(path) catch |err| {
-            std.debug.print("Reboot watcher failed on path {s} with error {}\n", .{ path, err });
+            logz.err()
+                .string("path", path)
+                .string("state", "Failed to stat()")
+                .err(err)
+                .log();
             continue;
         };
 
@@ -37,7 +41,7 @@ fn watchLoop(gpa: std.mem.Allocator) !void {
         const mtime_changed = (stat.mtime > initial_mtime);
 
         if (inode_changed or mtime_changed) {
-            logz.debug()
+            logz.info()
                 .string("EXIT", "binary changed")
                 .string("ACTION", "reboot ♻️")
                 .int("INODE", stat.inode)

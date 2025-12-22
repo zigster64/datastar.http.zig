@@ -6,7 +6,7 @@ const SVGMorphOptions = struct {
 const opt = blk: {
     break :blk datastar.readSignals(SVGMorphOptions, req) catch break :blk SVGMorphOptions{ .svgMorph = 5 };
 };
-var sse = try datastar.NewSSEOpt(req, res, .{ .long_lived = true });
+var sse = try datastar.NewSSESync(req, res);
 defer sse.close(res);
 
 for (1..opt.svgMorph + 1) |_| {

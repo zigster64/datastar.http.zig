@@ -98,8 +98,6 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
-
-        try sse.writeAll();
     }
 };
 

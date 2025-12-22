@@ -211,8 +211,6 @@ pub const App = struct {
         try w.writeAll(
             \\</div>
         );
-
-        try sse.writeAll();
     }
 
     pub fn publishPrefs(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {
@@ -232,8 +230,6 @@ pub const App = struct {
                 try sse.patchSignals(.{
                     .sort = @tagName(prefs.sort),
                 }, .{}, .{});
-
-                try sse.writeAll();
             }
         }
     }

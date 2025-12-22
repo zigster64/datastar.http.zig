@@ -264,7 +264,7 @@ When you are finished with the SSE object, you should either :
 - Otherwise, the SSE connection is left open after you exit your handler function. In this case, you can 
   access the `sse.stream: std.net.Stream` value and store it somewhere for additional updates over that open connection. 
 
-- If you want to leave SSE connections open after exiting the handler, then use `NewSSEOpt(req, res, .{.long_lived = true})` instead.
+- If you want to leave SSE connections open after exiting the handler, then use `NewSSESync(req, res)` instead, and dont call `sse.close()` when you are done.
 
 - This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
 
@@ -746,8 +746,6 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
     try w.writeAll(
         \\</div>
     );
-
-    try sse.flush(); // dont forget to flush !
 ```
 
 ## Pub/Sub - 5) Using Sessions with Pub/Sub
