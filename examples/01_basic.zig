@@ -443,7 +443,7 @@ fn mathMorph(req: *httpz.Request, res: *httpz.Response) !void {
 
     if (opt.mathmlMorph == 1) {
         try sse.patchElementsFmt(
-            \\<mn id="math-factor">{}</mn>
+            \\<mn id="math-factor" class="text-red-500 font-bold">{}</mn>
         ,
             .{prng.random().intRangeAtMost(u16, 2, 22)},
             .{ .namespace = .mathml, .view_transition = true },
