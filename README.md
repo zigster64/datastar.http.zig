@@ -25,6 +25,8 @@ Example apps provided with
 Future updates to this repo will include support for Zig stdlib http server, as well as 
 other popular HTTP server libs, such as zzz, zio, and zap.
 
+Waiting on Zig 0.16 to land before this can be complete.
+
 Will provide example apps that demonstrate using this SDK with each of these frameworks 
 as they get ported.
 
