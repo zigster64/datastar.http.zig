@@ -59,6 +59,8 @@ Endpoints
 /log = show 100k index page, and log each request
 /sse = convert 100k index page to SSE stream on the fly, and log each request
 
+Note that for Rust and Zig, adding logging to the handler has no measurable effect, but its included here for both Go and Bun, because they both have a bit of overhead in printing to logs for each handler.
+
 RAM size = peak RAM usage according to Activity Monitor, at the end of the SSE test
 
 | Language | Test Case | Requests/sec | Latency (Avg) | Transfer/sec | Binary/RAM Size |
