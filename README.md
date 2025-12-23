@@ -543,6 +543,8 @@ to do exactly this.
 
 See the SVG and MathML demo code in example_1 to see this in action.
 
+![Screenshot of mathml](./docs/images/mathml.mp4)
+
 # Publish and Subscribe
 
 This Zig SDK includes an easy to use Pub/Sub system for use with Datastar.
