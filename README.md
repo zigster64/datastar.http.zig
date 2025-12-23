@@ -161,7 +161,7 @@ Using http.zig :
 
 - example_5  shows an example multi-player Gardening Simulator using pub/sub
 
-Using Tokamak :
+Using Tokamak with Dependency Injection :
 
 - tokamak_basic  shows using the Datastar API using basic SDK handlers (same as example_1, but with Tokamak)
 
@@ -215,29 +215,29 @@ datastar.readSignals(comptime T: type, req: anytype) !T
 
 // set the connection to SSE, and return an SSE object
 var sse = datastar.NewSSE(req, res) !SSE
-var sse = datastar.NewSSEOpt(req, res, opt: SSEOptions) !SSE
+var sse = datastar.NewSSEOpt(req, res, sse_options) !SSE
 
 // set the connection to SSE, and return an SSE object in Synchronous Write mode
 var sse = datastar.NewSSESync(req, res) !SSE
 defer sse.close(res);
 
 // create an SSE object from an existing open connection
-var sse = NewSSEFromStream(stream: std.net.Stream, alloc: std.mem.Allocator) SSE
+var sse = NewSSEFromStream(stream, allocator) SSE
 defer sse.deinit();
 
 // patch elements function variants
-sse.patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void
-sse.patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void
-sse.patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer 
+sse.patchElements(elementsHTML, elements_options) !void
+sse.patchElementsFmt(comptime elementsHTML, arguments, elements_options) !void
+sse.patchElementsWriter(elements_options) *std.Io.Writer 
 
 // patch signals function variants
-sse.patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void
-sse.patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer
+sse.patchSignals(value, json_options, signals_options) !void
+sse.patchSignalsWriter(signals_options) *std.Io.Writer
 
 // execute scripts function variants
-sse.executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void
-sse.executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void 
-sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
+sse.executeScript(script, script_options) !void
+sse.executeScriptFmt(comptime script, arguments, script_options) !void
+sse.executeScriptWriter(script_options) *std.Io.Writer
 
 // variants of getting an SSE object
 
