@@ -70,7 +70,7 @@ on what you are currently using.
 
 Try it out.
 
-# Quick Shot Introduction
+# Quick Start Introduction
 
 If you just want to quickly install this, and try out the demo programs first, do this :
 
