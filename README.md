@@ -543,7 +543,7 @@ to do exactly this.
 
 See the SVG and MathML demo code in example_1 to see this in action.
 
-![Screenshot of mathml](./docs/images/mathml.mp4)
+<video src="./docs/images/mathml.mp4" muted autoplay loop style="max-width: 100%;"></video>
 
 # Publish and Subscribe
 
