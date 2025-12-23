@@ -20,7 +20,7 @@ pub fn main() !void {
             .buffer_size = 512,
         },
         .request = .{
-            .buffer_size = 512,
+            .buffer_size = 8196,
         },
     }, {});
     defer {
@@ -40,8 +40,6 @@ pub fn main() !void {
         .encoding = .logfmt,
     });
     defer logz.deinit();
-
-    datastar.configure(.{ .buffer_size = 255 });
 
     var router = try server.router(.{});
 
@@ -75,6 +73,7 @@ const TestEvent = struct {
     mode: ?[]const u8 = null,
     selector: ?[]const u8 = null,
     useViewTransition: ?bool = null,
+    namespace: ?[]const u8 = null,
 
     // patch Signals options
     signals: ?std.json.ArrayHashMap(std.json.Value) = null,
@@ -132,7 +131,7 @@ fn runTest(req: *httpz.Request, res: *httpz.Response) !void {
     // std.debug.print("Decoded TestInput: {any}\n", .{testInput});
 
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     if (testInput.events.len < 1) {
         res.status = 400;
@@ -167,6 +166,18 @@ fn runTest(req: *httpz.Request, res: *httpz.Response) !void {
                 .view_transition = if (event.useViewTransition) |vt| vt else false,
                 .event_id = event.eventId,
                 .retry_duration = event.retryDuration,
+                .namespace = blk: {
+                    if (event.namespace) |ns| {
+                        if (std.meta.stringToEnum(datastar.NameSpace, ns)) |parsed_namespace| {
+                            break :blk parsed_namespace;
+                        } else {
+                            res.status = 400;
+                            std.debug.print("Invalid patchElements namespace '{s}'\n", .{ns});
+                            return;
+                        }
+                    }
+                    break :blk .html;
+                },
             });
         }
 

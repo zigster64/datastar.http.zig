@@ -1,7 +1,7 @@
 == patchSignalsOnlyIfMissing handler ==
 
 var sse = try datastar.NewSSE(req, res);
-defer sse.close();
+defer sse.close(res);
 
 const foo = prng.random().intRangeAtMost(u8, 1, 100);
 const bar = prng.random().intRangeAtMost(u8, 1, 100);

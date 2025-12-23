@@ -9,7 +9,7 @@ https://github.com/starfederation/datastar/blob/develop/sdk/ADR.md
 This SDK uses streams all the way down, so there is no implicit extra allocations.
 
 Versions :
-- Datastar 1.0.0-RC6
+- Datastar 1.0.0-RC7
 - Zig 0.15.2
 
 It uses the latest "writergate" changes for zig 0.15.2, and makes good use of the high speed buffered 
@@ -24,6 +24,8 @@ Example apps provided with
 
 Future updates to this repo will include support for Zig stdlib http server, as well as 
 other popular HTTP server libs, such as zzz, zio, and zap.
+
+Waiting on Zig 0.16 to land before this can be complete.
 
 Will provide example apps that demonstrate using this SDK with each of these frameworks 
 as they get ported.
@@ -68,7 +70,7 @@ on what you are currently using.
 
 Try it out.
 
-# Quick Shot Introduction
+# Quick Start Introduction
 
 If you just want to quickly install this, and try out the demo programs first, do this :
 
@@ -86,7 +88,7 @@ Then open your browser to http://localhost:8081
 This will bring up a kitchen sink app that shows each of the SDK functions in use in the browser, with a 
 section that displays the code to use on your backend to drive the page you are looking at.
 
-![Screenshot of example_1](./docs/images/example_1.png)
+![Screenshot of example_1](./docs/images/example_1a.png)
 
 `./zig-out/bin/tokamak_basic` - Same application, but using Tokamak instead of directly using http.zig
 
@@ -159,7 +161,7 @@ Using http.zig :
 
 - example_5  shows an example multi-player Gardening Simulator using pub/sub
 
-Using Tokamak :
+Using Tokamak with Dependency Injection :
 
 - tokamak_basic  shows using the Datastar API using basic SDK handlers (same as example_1, but with Tokamak)
 
@@ -167,9 +169,9 @@ Using Tokamak :
 
 TODO :
 
+- Zig stdlib examples with Zig 0.16 async/threaded
 - Jetzig examples
-- Zig stdlib examples
-- Zio+stdlib examples
+- Zio/Dusty examples
 - zzz examples
 - zap examples
 - backstage (actor framework) examples
@@ -213,29 +215,31 @@ datastar.readSignals(comptime T: type, req: anytype) !T
 
 // set the connection to SSE, and return an SSE object
 var sse = datastar.NewSSE(req, res) !SSE
+var sse = datastar.NewSSEOpt(req, res, sse_options) !SSE
+
+// set the connection to SSE, and return an SSE object in Synchronous Write mode
+var sse = datastar.NewSSESync(req, res) !SSE
+defer sse.close(res);
+
+// create an SSE object from an existing open connection
+var sse = NewSSEFromStream(stream, allocator) SSE
+defer sse.deinit();
 
 // patch elements function variants
-sse.patchElements(self: *SSE, elements: []const u8, opt: PatchElementsOptions) !void
-sse.patchElementsFmt(self: *SSE, comptime elements: []const u8, args: anytype, opt: PatchElementsOptions) !void
-sse.patchElementsWriter(self: *SSE, opt: PatchElementsOptions) *std.Io.Writer 
+sse.patchElements(elementsHTML, elements_options) !void
+sse.patchElementsFmt(comptime elementsHTML, arguments, elements_options) !void
+sse.patchElementsWriter(elements_options) *std.Io.Writer 
 
 // patch signals function variants
-sse.patchSignals(self: *SSE, value: anytype, json_opt: std.json.Stringify.Options, opt: PatchSignalsOptions) !void
-sse.patchSignalsWriter(self: *SSE, opt: PatchSignalsOptions) *std.Io.Writer
+sse.patchSignals(value, json_options, signals_options) !void
+sse.patchSignalsWriter(signals_options) *std.Io.Writer
 
 // execute scripts function variants
-sse.executeScript(self: *SSE, script: []const u8, opt: ExecuteScriptOptions) !void
-sse.executeScriptFmt(self: *SSE, comptime script: []const u8, args: anytype, opt: ExecuteScriptOptions) !void 
-sse.executeScriptWriter(self: *SSE, opt: ExecuteScriptOptions) *std.Io.Writer
+sse.executeScript(script, script_options) !void
+sse.executeScriptFmt(comptime script, arguments, script_options) !void
+sse.executeScriptWriter(script_options) *std.Io.Writer
 
 // variants of getting an SSE object
-
-// create SSE with custom buffer
-var sse = NewSSEBuffered(req, res, buffer) !SSE 
-// create an SSE object from an existing open connection
-var sse = NewSSEFromStream(gpa: stream: std.net.Stream, buffer: []u8) SSE
-// fine tune internal IO buffering / other configuration
-datastar.configure(.{ .buffer_size = 255 });
 
 // SDK extension - auto pub/sub management
 app.subscribe("topic", sse.stream, someCallbackFunction);
@@ -257,16 +261,75 @@ Calling NewSSE, passing a request and response, will return an object of type SS
 This will configure the connnection for SSE transfers, and provides an object with Datastar methods for
 patching elements, patching signals, executing scripts, etc.
 
-When you are finished with the SSE object, you should either :
+When you are finished with this SSE object, you must call `sse.close(res)` to finish the handler.
 
-- Call `sse.close()` if you are done and want to close the connection as part of your handler.
+When running in this default mode (named internally as 'batched mode'), all of the SSE patches are batched
+up, and then passed up to the HTTP library for transmission, and closing the connection.
 
-- Otherwise, the SSE connection is left open after you exit your handler function. In this case, you can 
-  access the `sse.stream: std.net.Stream` value and store it somewhere for additional updates over that open connection. 
+In batched mode, the entire payload is sent as a single transmission with a fixed content-length header, 
+and no chunked encoding.
 
-- This Zig SDK also includes a simple Pub/Sub subsystem that takes care o  tracking open connections in a convenient manner, or you can use the value `sse.stream` to roll your own as well. 
+You can declare your sse object early in the handler, and then set headers / cookies etc at any time 
+in the handler. Because actual network updates are batched till the end, everything goes out in the correct order.
+
+Batched mode is tuned for performance, and ease of use.
 
 
+For more complex cases, use 'Synchronous Mode'
+
+```zig
+    pub fn NewSSESync(req, res) !SSE
+```
+
+This will configure the connection for SSE transfers, and send the headers immediately.
+
+All operations on the sse object from here on will immediately write to the network, and apply
+chunked encoding.
+
+eg - Network writes are Synchronous, and are not delayed till the end of the handler like they are 
+in batched mode.
+
+Once you have created the sse in Synchronous mode, you cannot add any more headers/cookies.
+
+You can add in sleep() delays to your handler to output - say - an animation with small delays between updates.
+
+When you are finished the handler, you may call `sse.close(res)` to close off the connection.
+
+Or, once you have the sse in Synchronous Mode, you can choose not to call `sse.close(res)`, which 
+will keep the connection open, detached from the handler.
+
+In this case, you can access `sse.stream` to get the value of the `std.net.Stream` for the connection,
+and possibly store this for later use.
+
+```zig
+    pub fn NewSSEFromStream(stream, allocator) SSE
+    defer sse.deinit();
+```
+
+Will return a sse object for a given already open connection. This sse will be in Synchronous Mode.
+
+Because this call takes an allocator, and may do allocations, pair `defer sse.deinit()` here always.
+
+- This Zig SDK also includes a simple Pub/Sub subsystem that takes care of tracking open connections
+in a convenient manner, using the `sse.stream` value as above.  See example apps for usage of this.
+
+
+Finally, there is a NewSSE variant that takes a set of options, for special cases
+
+```zig
+    pub fn NewSSEOpt(req, res, SSEOptions) !SSE
+
+    // Where options are 
+    const SSEOptions = struct {
+        mode: SSEMode = .batch,
+        buffer_size: usize = 16 * 1024, // internal buffer size for batched mode
+    };
+
+    const SSEMode = enum {
+        batch, // batch up output in memory, and sort it out at the end of the handler
+        sync,  // use chunked encoding and output patches on the wire as soon as they are called
+    };
+```
 
 ## Reading Signals from the request
 
@@ -319,11 +382,12 @@ Use `sse.patchElementsFmt` to directly patch the DOM with a formatted print (whe
 
 Use `sse.patchElementsWriter` to return a std.Io.Writer object that you can programmatically write to using complex logic.
 
-If using the Writer, then be sure to call `sse.flush()` when you are finished writing to it and wish to keep the socket open, and writing to the same patchElements stream later.
+When using the writer, you can call `w.flush()` to manually flush the writer ... but you generally 
+dont need to worry about this, as the sse object will correctly terminate an existing writer, as
+soon as the next `patchElements / patchSignals` is issued, or at the end of the handler cleanup
+as the `defer sse.close() / defer sse.deinit()` functions are called.
 
-Calling `sse.close()` will automatically flush the writer output.
-
-Starting any new patchElements / patchSignals / executeScript on the SSE object will automatically flush the last writer as well.
+See the example apps for best working examples.
 
 
 PatchElementsOptions is defined as :
@@ -335,6 +399,7 @@ pub const PatchElementsOptions = struct {
     view_transition: bool = false,
     event_id: ?[]const u8 = null,
     retry_duration: ?i64 = null,
+    namespace: NameSpace = .html,
 };
 
 pub const PatchMode = enum {
@@ -346,6 +411,12 @@ pub const PatchMode = enum {
     before,
     after,
     remove,
+};
+
+pub const NameSpace = enum {
+    html,
+    svg,
+    mathml,
 };
 ```
 
@@ -360,7 +431,7 @@ Example handler (from `examples/01_basic.zig`)
 ```zig
 fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     try sse.patchElementsFmt(
         \\<p id="mf-patch">This is update number {d}</p>
@@ -400,7 +471,7 @@ Example handler (from `examples/01_basic.zig`)
 ```zig
 fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
@@ -449,7 +520,7 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     const value = req.param("value"); // can be null
 
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     try sse.executeScriptFmt("console.log('You asked me to print {s}')"", .{
             value orelse "nothing at all",
@@ -459,60 +530,18 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
 
 # Advanced SSE Topics
 
-## SSE IO, buffering and async socket writes
+## Namespaces - SVG and MathML (Datastar RC7 feature)
 
-Since Zig 0.15, IO and buffering are now a big deal, and offers some extreme options for fine tuning and optimizing your systems.  This is a good thing, and lots of fun to experiment with.
+`patchElements()` works great when morphing small fragments into existing DOM content, using the element ID,
+or other selectors.
 
-The SSE object uses a std.Io.Writer stream to convert normal HTML Element, Signal and Script updates into the Datastar protocol, and then write them to the browser's connection.
+Unfortunately, when we have a large chunk of SVG or MathML content, the standard HTML morphing 
+cannot reach down inside the SVG markup to pick out individual child elements for individual updates.
 
-By default this std.Io.Writer uses a zero-sized intermediate buffer, so every chunk written is passed straight through to the underlying socket writer after being converted to Datastar protocol.
+However, you can now use the `.namespace = svg` or `.namespace = mathml` options for `patchElements()` now
+to do exactly this.
 
-With http.zig, this underlying socket writer is already buffered, and uses async IO to drain data to the user's browser in the background after your handler exits. This is all taken care of for you.
-
-For most applications, these defaults offer an excellent balance between performance and memory consumption.
-
-For advanced use cases, you can opt in for applying buffering to the SSE operations as well, by setting a default buffer size. 
-
-This will reduce the number of writes between the SSE processor and the underlying http.zig writer to the browser, at the expense of one extra allocation per request.
-
-To configure buffering, use this : 
-
-```zig
-    datastar.configure(.{ .buffer_size = 255 }); // or whatever value you want
-```
-
-If your handlers are typically doing a large number of small writes inside a patchElements operation, then its definitely worth thinking about using a buffer for this.
-
-If you are using formatted printing a lot (either through `w.print(...) or sse.patchElementsFmt(...)`), then that will generate a larger number of small writes as well, as the print 
-formatter likes to output fragments of your string, and each argument all as separate write operations.
-
-The performance differences between using a buffer or not can be quite marginal (we are talking microseconds if at all), but its there if you think you need it. 
-
-If you choose to use this, try and set the size of the buffer around the size of your most common smaller outputs, which could be 200-300 bytes depending on your application, or it could be a lot more.
-
-For example - if you set the buffer size to 200, then write 500 bytes to it, you will end up with 3 writes to the underlying stream - 1 for each time the buffer is full, then 1 more to flush the remainder.
-
-The SDK automatically takes care of flushing these intermediate buffers for you.
-
-Benchmark, experiment, and make your own decision about whether buffering improves your app or not, and use what works best for you.
-
-## Using custom buffering for a specific SSE object
-
-In some rare cases, you may want to apply a custom buffer to the SSE stream outside of the default configuration.
-
-Use 
-
-```zig
-    pub fn NewSSEBuffered(req, res, buffer) !SSE 
-```
-
-For example - see `fn code()` in `examples/01_basic.zig`, where it provides its own buffer to the SSE object, where the size is calculated in advance based on the size 
-of the payload.
-
-This is because the `code()` fn uses a tight loop that writes 1 byte at a time to the output. 
-This custom sized buffer allows the whole output  bnto be written into memory before being passed on to the socket writer.
-
-Consider using this if you have a rare case that makes sense.
+See the SVG and MathML demo code in example_1 to see this in action.
 
 # Publish and Subscribe
 
@@ -724,7 +753,8 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
 
     // get an SSE object for the given stream
     var buffer: [1024]u8 = undefined;
-    var sse = datastar.NewSSEFromStream(stream, &buffer);
+    var sse = datastar.NewSSEFromStream(stream, app.gpa, &buffer);
+    defer sse.deinit();
 
     // Set the sse to PatchElements, and return us a writer
     var w = sse.patchElementsWriter(.{});
@@ -743,8 +773,6 @@ pub fn publishCatList(app: *App, stream: std.net.Stream, _: ?[]const u8) !void {
     try w.writeAll(
         \\</div>
     );
-
-    try sse.flush(); // dont forget to flush !
 ```
 
 ## Pub/Sub - 5) Using Sessions with Pub/Sub

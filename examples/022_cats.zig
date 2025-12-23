@@ -169,25 +169,17 @@ pub const App = struct {
             logz.info().string("event", "publishCatList").int("stream", stream.handle).string("session", session orelse "null").int("elapsed (μs)", t2 - t1).log();
         }
 
-        var buffer: [1024]u8 = undefined;
-        var sse = datastar.NewSSEFromStream(stream, &buffer);
-
-        // Update the HTML in the correct order
-        var w = sse.patchElementsWriter(.{ .view_transition = true });
-
         // TODO - this is uneccessarily ugly, but its still quick, so nobody is going to care
         // sort by id first to get all the bid signals correct
         app.sortCats(.id);
-        try w.print(
-            \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
-        , .{
+        const bids = [6]usize{
             app.cats.items[0].bid,
             app.cats.items[1].bid,
             app.cats.items[2].bid,
             app.cats.items[3].bid,
             app.cats.items[4].bid,
             app.cats.items[5].bid,
-        });
+        };
 
         if (session) |s| {
             // then re-sort them if its different to id order to get the cards right
@@ -195,14 +187,30 @@ pub const App = struct {
                 app.sortCats(session_prefs.sort);
             }
         }
+
+        var sse = datastar.NewSSEFromStream(stream, app.gpa);
+        defer sse.deinit();
+
+        var w = sse.patchElementsWriter(.{ .view_transition = true });
+        try w.print(
+            \\<div id="cat-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mt-4 h-full" data-signals="{{ bids: [{d},{d},{d},{d},{d},{d}] }}">
+        , .{
+            bids[0],
+            bids[1],
+            bids[2],
+            bids[3],
+            bids[4],
+            bids[5],
+        });
+
+        std.debug.print("start line of cats list is\n{s}\n", .{w.buffered()});
+
         for (app.cats.items) |cat| {
             try cat.render(w);
         }
         try w.writeAll(
             \\</div>
         );
-
-        try sse.flush();
     }
 
     pub fn publishPrefs(app: *App, stream: std.net.Stream, session: ?[]const u8) !void {
@@ -216,8 +224,8 @@ pub const App = struct {
         // clients sharing this same session ID, to keep them in sync
         if (session) |s| {
             if (app.sessions.get(s)) |prefs| {
-                var buffer: [32]u8 = undefined;
-                var sse = datastar.NewSSEFromStream(stream, &buffer);
+                var sse = datastar.NewSSEFromStream(stream, app.gpa);
+                defer sse.deinit();
 
                 try sse.patchSignals(.{
                     .sort = @tagName(prefs.sort),

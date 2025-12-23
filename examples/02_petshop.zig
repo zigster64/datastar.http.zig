@@ -70,9 +70,7 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "catsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const sse = try datastar.NewSSE(req, res);
-    // DO NOT close - this stream stays open forever
-    // and gets subscribed to "cats" update events
+    const sse = try datastar.NewSSESync(req, res);
     try app.subscribe("cats", sse.stream, App.publishCatList);
 }
 

@@ -89,7 +89,7 @@ fn postAsset(_: *App, req: *httpz.Request, res: *httpz.Response) !void {
     res.body = try file.readToEndAlloc(res.arena, 100000);
 }
 
-fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
+fn plantList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
     app.mutex.lock();
     defer {
@@ -98,18 +98,9 @@ fn plantList(app: *App, _: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "plantsList").int("elapsed (μs)", t2 - t1).log();
     }
 
-    const stream: std.net.Stream = try res.startEventStreamSync();
-    // DO NOT close - this stream stays open forever
-    // and gets subscribed to "plants" update events
-    try app.subscribe("plants", stream, App.publishPlantList);
-    try app.subscribe("crops", stream, App.publishCropCounts);
-
-    // just to be silly - try to multi subscribe, and observe that it detects that its already subbed
-    // and generate an error in the logs
-    try app.subscribe("plants", stream, App.publishPlantList);
-    try app.subscribe("crops", stream, App.publishCropCounts);
-    try app.subscribe("plants", stream, App.publishPlantList);
-    try app.subscribe("crops", stream, App.publishCropCounts);
+    const sse = try datastar.NewSSESync(req, res);
+    try app.subscribe("plants", sse.stream, App.publishPlantList);
+    try app.subscribe("crops", sse.stream, App.publishCropCounts);
 }
 
 fn postPlantEffect(app: *App, req: *httpz.Request, _: *httpz.Response) !void {

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="napoleon">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Virtual Garden - DataStar Subscribe Function</title>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.6/bundles/datastar.js"></script>
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
@@ -127,7 +127,9 @@
       </h2>
     </div>
   </div>
-  <div id="plant-list" data-init="@get('/plants')">...Loading Plants</div>
+  <div data-init="@get('/plants')">
+    <div id="plant-list">...Loading Plants</div>
+  </div>
   <div id="tool-select" class="m-auto flex gap-2 w-4/12 h-2/12 justify-center items-center">
     <img data-on:click="$hand == 'watering' ? $hand = 'empty' :  $hand = 'watering';"
       data-class:selected="$hand == 'watering';" class="w-16 rounded-md"

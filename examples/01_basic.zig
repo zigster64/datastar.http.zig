@@ -2,6 +2,7 @@ const std = @import("std");
 const httpz = @import("httpz");
 const logz = @import("logz");
 const datastar = @import("datastar");
+const rebooter = @import("rebooter.zig");
 const Allocator = std.mem.Allocator;
 
 const PORT = 8081;
@@ -26,6 +27,12 @@ fn getCountAndIncrement() usize {
 pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}).init;
     const allocator = gpa.allocator();
+    defer {
+        const check = gpa.deinit();
+        if (check == .leak) {
+            std.debug.print("Leak Detected\n", .{});
+        }
+    }
 
     var server = try httpz.Server(void).init(allocator, .{
         .port = PORT,
@@ -49,8 +56,6 @@ pub fn main() !void {
     });
     defer logz.deinit();
 
-    datastar.configure(.{ .buffer_size = 255 });
-
     var router = try server.router(.{});
 
     router.get("/", index, .{});
@@ -63,8 +68,12 @@ pub fn main() !void {
     router.get("/patch/signals/onlymissing", patchSignalsOnlyIfMissing, .{});
     router.get("/patch/signals/remove/:names", patchSignalsRemove, .{});
     router.get("/executescript/:sample", executeScript, .{});
+    router.get("/svg-morph", svgMorph, .{});
+    router.get("/mathml-morph", mathMorph, .{});
 
     router.get("/code/:snip", code, .{});
+
+    try rebooter.start(allocator);
 
     std.debug.print("listening http://localhost:{d}/\n", .{PORT});
     std.debug.print("... or any other IP address pointing to this machine\n", .{});
@@ -81,13 +90,6 @@ fn textHTML(_: *httpz.Request, res: *httpz.Response) !void {
     defer {
         const t2 = std.time.microTimestamp();
         logz.info().string("event", "textHTML").int("elapsed (μs)", t2 - t1).log();
-        // NOTE - you will see REALLY fast timings on these ones compared to SSE transfers
-        // but thats only because this function exits before doing any writing.
-        // It just sets the response body ... the http engine will do the writing afterwards
-        //
-        // If this function is changed to get a writer to the response, and w.print
-        // directly to the stream just like the SSE methods use,  then you will see the
-        // timings are ballpark the same as doing the SSE calls.
     }
 
     res.content_type = .HTML;
@@ -109,9 +111,8 @@ fn patchElements(req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "patchElements").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     try sse.patchElementsFmt(
         \\<p id="mf-patch">This is update number {d}</p>
@@ -141,9 +142,9 @@ fn patchElementsOpts(req: *httpz.Request, res: *httpz.Response) !void {
     if (signals.morph.len < 1) {
         return;
     }
-    // these are short lived updates so we close the request as soon as its done
+
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     // read the signals to work out which options to set, checking the name of the
     // option vs the enum values, and add them relative to the mf-patch-opt item
@@ -185,9 +186,8 @@ fn patchElementsOptsReset(req: *httpz.Request, res: *httpz.Response) !void {
         logz.info().string("event", "patchElementsOptsReset").int("elapsed (μs)", t2 - t1).log();
     }
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     try sse.patchElements(@embedFile("01_index_opts.html"), .{
         .selector = "#patch-element-card",
@@ -212,7 +212,7 @@ fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
 
     // Outputs a formatted patch-signals SSE response to update signals
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     const foo = prng.random().intRangeAtMost(u8, 0, 255);
     const bar = prng.random().intRangeAtMost(u8, 0, 255);
@@ -229,9 +229,8 @@ fn patchSignals(req: *httpz.Request, res: *httpz.Response) !void {
 fn patchSignalsOnlyIfMissing(req: *httpz.Request, res: *httpz.Response) !void {
     const t1 = std.time.microTimestamp();
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     // this will set the following signals
     const foo = prng.random().intRangeAtMost(u8, 1, 100);
@@ -258,11 +257,8 @@ fn patchSignalsRemove(req: *httpz.Request, res: *httpz.Response) !void {
     const signals_to_remove: []const u8 = req.param("names").?;
     var names_iter = std.mem.splitScalar(u8, signals_to_remove, ',');
 
-    // Would normally want to escape and validate the provided names here
-
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     var w = sse.patchSignalsWriter(.{});
 
@@ -290,9 +286,8 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     const sample = req.param("sample").?;
     const sample_id = try std.fmt.parseInt(u8, sample, 10);
 
-    // these are short lived updates so we close the request as soon as its done
     var sse = try datastar.NewSSE(req, res);
-    defer sse.close();
+    defer sse.close(res);
 
     // make up an array of attributes for this
     var attribs = datastar.ScriptAttributes.init(res.arena);
@@ -326,6 +321,154 @@ fn executeScript(req: *httpz.Request, res: *httpz.Response) !void {
     logz.info().string("event", "executeScript").int("sample_id", sample_id).int("elapsed (μs)", t2 - t1).log();
 }
 
+// output some morphs to the SVG elements using svg namespace
+fn svgMorph(req: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "svgMorph").int("elapsed (μs)", t2 - t1).log();
+    }
+
+    prng.seed(@intCast(std.time.timestamp()));
+    const SVGMorphOptions = struct {
+        svgMorph: usize = 1,
+    };
+    const opt = blk: {
+        break :blk datastar.readSignals(SVGMorphOptions, req) catch break :blk SVGMorphOptions{ .svgMorph = 1 };
+    };
+    var sse = try datastar.NewSSESync(req, res);
+    defer sse.close(res);
+
+    for (1..opt.svgMorph + 1) |_| {
+        try sse.patchElementsFmt(
+            \\<circle id="svg-circle" cx="{}" cy="{}" r="{}" class="fill-red-500 transition-all duration-500" />
+        ,
+            .{
+                // cicrle x y r
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 80),
+            },
+            .{ .namespace = .svg },
+        );
+        std.Thread.sleep(std.time.ns_per_ms * 100);
+        try sse.patchElementsFmt(
+            \\<rect id="svg-square" x="{}" y="{}" width="{}" height="80" class="fill-green-500 transition-all duration-500" />
+        ,
+            .{
+                // rectangle x y width
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 100),
+                prng.random().intRangeAtMost(u8, 10, 80),
+            },
+            .{ .namespace = .svg },
+        );
+        std.Thread.sleep(std.time.ns_per_ms * 100);
+        try sse.patchElementsFmt(
+            \\<polygon id="svg-triangle" points="{},{} {},{} {},{}" class="fill-blue-500 transition-all duration-500" />
+        ,
+            .{
+                // polygon random points
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+                prng.random().intRangeAtMost(u16, 50, 300),
+            },
+            .{ .namespace = .svg },
+        );
+        // The Phat update alternative is to re-write the entire SVG, which doesnt need namespaces
+        // try sse.patchElementsFmt(
+        //     \\<svg id="svg-stage" class="w-full h-full" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        //     \\  <circle id="svg-circle" cx="{}" cy="{}" r="{}" class="fill-red-500 transition-all duration-500" />
+        //     \\  <rect id="svg-square" x="{}" y="{}" width="{}" height="80" class="fill-green-500 transition-all duration-500" />
+        //     \\  <polygon id="svg-triangle" points="{},{} {},{} {},{}" class="fill-blue-500 transition-all duration-500" />
+        //     \\</svg>
+        // ,
+        //     .{
+        //         // cicrle x y r
+        //         prng.random().intRangeAtMost(u8, 10, 100),
+        //         prng.random().intRangeAtMost(u8, 10, 100),
+        //         prng.random().intRangeAtMost(u8, 10, 80),
+        //         // rectangle x y width
+        //         prng.random().intRangeAtMost(u8, 10, 100),
+        //         prng.random().intRangeAtMost(u8, 10, 100),
+        //         prng.random().intRangeAtMost(u8, 10, 80),
+        //         // polygon random points
+        //         prng.random().intRangeAtMost(u16, 50, 300),
+        //         prng.random().intRangeAtMost(u16, 50, 300),
+        //         prng.random().intRangeAtMost(u16, 50, 300),
+        //         prng.random().intRangeAtMost(u16, 50, 300),
+        //         prng.random().intRangeAtMost(u16, 50, 300),
+        //         prng.random().intRangeAtMost(u16, 50, 300),
+        //     },
+        //     .{ .namespace = .svg },
+        // );
+        std.Thread.sleep(std.time.ns_per_ms * 200);
+    }
+}
+
+const mathMLs = [_][]const u8{
+    @embedFile("snippets/math1.html"),
+    @embedFile("snippets/math2.html"),
+    @embedFile("snippets/math3.html"),
+    @embedFile("snippets/math4.html"),
+    @embedFile("snippets/math5.html"),
+    @embedFile("snippets/math6.html"),
+    @embedFile("snippets/math7.html"),
+    @embedFile("snippets/math8.html"),
+    @embedFile("snippets/math9.html"),
+    @embedFile("snippets/math10.html"),
+    @embedFile("snippets/math11.html"),
+};
+
+// output some random MathML
+fn mathMorph(req: *httpz.Request, res: *httpz.Response) !void {
+    const t1 = std.time.microTimestamp();
+    defer {
+        const t2 = std.time.microTimestamp();
+        logz.info().string("event", "mathMorph").int("elapsed (μs)", t2 - t1).log();
+    }
+
+    prng.seed(@intCast(std.time.timestamp()));
+    const MathMorphOptions = struct {
+        mathmlMorph: usize = 1,
+    };
+    const opt = blk: {
+        break :blk datastar.readSignals(MathMorphOptions, req) catch break :blk MathMorphOptions{ .mathmlMorph = 1 };
+    };
+    var sse = try datastar.NewSSESync(req, res);
+    defer sse.close(res);
+
+    if (opt.mathmlMorph == 1) {
+        try sse.patchElementsFmt(
+            \\<mn id="math-factor" class="text-red-500 font-bold">{}</mn>
+        ,
+            .{prng.random().intRangeAtMost(u16, 2, 22)},
+            .{ .namespace = .mathml, .view_transition = true },
+        );
+        try sse.patchSignals(.{ .mathmlMorph = 1 }, .{}, .{});
+        return;
+    }
+
+    var delay: u64 = 100;
+    for (1..opt.mathmlMorph + 1) |i| {
+        switch (mathMLs.len - 3) {
+            1, 2 => delay = 2000,
+            3 => delay = 1600,
+            4 => delay = 1200,
+            else => delay = 200,
+        }
+        if (i > (mathMLs.len - 3)) {}
+
+        const r = prng.random().intRangeAtMost(u8, 1, mathMLs.len);
+        try sse.patchElements(mathMLs[r - 1], .{ .namespace = .mathml });
+        std.Thread.sleep(std.time.ns_per_ms * delay);
+    }
+    try sse.patchSignals(.{ .mathmlMorph = 1 }, .{}, .{});
+}
+
 const snippets = [_][]const u8{
     @embedFile("snippets/code1.zig"),
     @embedFile("snippets/code2.zig"),
@@ -335,6 +478,8 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code6.zig"),
     @embedFile("snippets/code7.zig"),
     @embedFile("snippets/code8.zig"),
+    @embedFile("snippets/code9.zig"),
+    @embedFile("snippets/code10.zig"),
 };
 
 fn code(req: *httpz.Request, res: *httpz.Response) !void {
@@ -342,16 +487,14 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
     const snip_id = try std.fmt.parseInt(u8, snip, 10);
 
     if (snip_id < 1 or snip_id > snippets.len) {
+        std.debug.print("Invalid code snippet {}, range is 1-{}\n", .{ snip_id, snippets.len });
         return error.InvalidCodeSnippet;
     }
 
     const data = snippets[snip_id - 1];
 
-    // create a buffer double the size of the snippet, to allow for brackets and extra HTML things
-    // so it all fits nicely in a single write operation to the SSE stream
-    const buffer: []u8 = try res.arena.alloc(u8, data.len * 2);
-    var sse = try datastar.NewSSEBuffered(req, res, buffer);
-    defer sse.close();
+    var sse = try datastar.NewSSE(req, res);
+    defer sse.close(res);
 
     const selector = try std.fmt.allocPrint(res.arena, "#code-{s}", .{snip});
     var w = sse.patchElementsWriter(.{
@@ -359,9 +502,11 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
         .mode = .append,
     });
 
+    try w.writeAll("<pre><code>");
+
     var it = std.mem.splitAny(u8, data, "\n");
     while (it.next()) |line| {
-        try w.writeAll("<pre><code>");
+        try w.writeAll("&nbsp;&nbsp;"); // pad each line to the right
         for (line) |c| {
             switch (c) {
                 '<' => try w.writeAll("&lt;"),
@@ -370,6 +515,7 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
                 else => try w.writeByte(c),
             }
         }
-        try w.writeAll("</code></pre>\n");
+        try w.writeAll("\n");
     }
+    try w.writeAll("</code></pre>\n");
 }

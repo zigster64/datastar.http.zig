@@ -1,0 +1,20 @@
+[package]
+name = "bench-rust"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bench-rust"
+path = "bench.rs"
+
+[dependencies]
+# Web Framework
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+
+# Utilities
+futures = "0.3"
+tower-http = { version = "0.5", features = ["trace"] }
+
+# The SDK
+datastar = { git = "https://github.com/starfederation/datastar-rust" }

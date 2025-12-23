@@ -1,0 +1,13 @@
+{
+  "name": "bench",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@starfederation/datastar-sdk": "^1.0.0-RC.3"
+  }
+}

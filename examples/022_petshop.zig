@@ -99,7 +99,7 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
     var cookies = req.cookies();
     if (cookies.get("session")) |session| {
         // validated session
-        const sse = try datastar.NewSSE(req, res);
+        const sse = try datastar.NewSSESync(req, res);
         try app.subscribeSession("cats", sse.stream, App.publishCatList, session);
         try app.subscribeSession("prefs", sse.stream, App.publishPrefs, session);
     } else {
@@ -107,7 +107,7 @@ fn catsList(app: *App, req: *httpz.Request, res: *httpz.Response) !void {
         // no valid session - create a new one
         // redirect them to /
         var sse = try datastar.NewSSE(req, res);
-        defer sse.close();
+        defer sse.close(res);
         try sse.executeScript("window.location='/'", .{});
     }
 }

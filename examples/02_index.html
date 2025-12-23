@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="napoleon">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CatBay Auctions - DataStar Subscribe Function</title>
   <script type="module"
-    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.6/bundles/datastar.js"></script>
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.7/bundles/datastar.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <style>
@@ -43,7 +43,9 @@
     <p>Load up multiple browser windows pointing to this page, and place bids to watch the updates</p>
   </div>
 
-  <div id="cat-list" data-init="@get('/cats')">... Loading Cats</div>
+  <div data-init="@get('/cats')">
+    <div id="cat-list">... Loading Cats</div>
+  </div>
 
 </body>
 
