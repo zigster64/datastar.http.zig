@@ -88,7 +88,7 @@ Then open your browser to http://localhost:8081
 This will bring up a kitchen sink app that shows each of the SDK functions in use in the browser, with a 
 section that displays the code to use on your backend to drive the page you are looking at.
 
-![Screenshot of example_1](./docs/images/example_1.png)
+![Screenshot of example_1](./docs/images/example_1a.png)
 
 `./zig-out/bin/tokamak_basic` - Same application, but using Tokamak instead of directly using http.zig
 
