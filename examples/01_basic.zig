@@ -455,10 +455,9 @@ fn mathMorph(req: *httpz.Request, res: *httpz.Response) !void {
     var delay: u64 = 100;
     for (1..opt.mathmlMorph + 1) |i| {
         switch (mathMLs.len - 3) {
-            1 => delay = 2000,
-            2 => delay = 1600,
-            3 => delay = 800,
-            4 => delay = 400,
+            1, 2 => delay = 2000,
+            3 => delay = 1600,
+            4 => delay = 1200,
             else => delay = 200,
         }
         if (i > (mathMLs.len - 3)) {}
@@ -507,6 +506,7 @@ fn code(req: *httpz.Request, res: *httpz.Response) !void {
 
     var it = std.mem.splitAny(u8, data, "\n");
     while (it.next()) |line| {
+        try w.writeAll("&nbsp;&nbsp;"); // pad each line to the right
         for (line) |c| {
             switch (c) {
                 '<' => try w.writeAll("&lt;"),

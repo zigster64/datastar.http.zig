@@ -5,9 +5,9 @@
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .httpz = .{
-            .path = "../http.zig",
-            // .url = "git+https://github.com/karlseguin/http.zig#2965722dcf9fd656f218fdbd76f4ced0f376bd0d",
-            // .hash = "httpz-0.0.0-PNVzrLwlBwCjuWNaokqbQwrsstWT3c_4yb-8TNuYOFcZ",
+            // .path = "../http.zig",
+            .url = "git+https://github.com/karlseguin/http.zig#2965722dcf9fd656f218fdbd76f4ced0f376bd0d",
+            .hash = "httpz-0.0.0-PNVzrLwlBwCjuWNaokqbQwrsstWT3c_4yb-8TNuYOFcZ",
         },
         .logz = .{
             .url = "git+https://github.com/karlseguin/log.zig?ref=master#cc5268932e84da9dad09fd48b544d67212889c02",
