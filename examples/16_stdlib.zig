@@ -1,10 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const datastar = @import("datastar");
+const HTTPRequest = datastar.HTTPRequest;
 const rebooter = @import("rebooter16.zig");
 const Io = std.Io;
 
 const PORT = 8080;
+const MAX_THREADS = 2000;
 
 var update_count: usize = 1;
 var update_mutex: std.Thread.Mutex = .{};
@@ -29,10 +31,11 @@ pub fn main() !void {
     // from heavy threads to coroutines
     var threaded: Io.Threaded = .init(allocator);
     defer threaded.deinit();
+    threaded.setAsyncLimit(std.Io.Limit.limited64(MAX_THREADS));
     const io = threaded.io();
 
     std.debug.print(
-        "Created Threaded IO with limit of {}\n",
+        "Created Threaded IO with limit of {} threads\n",
         .{threaded.async_limit.toInt() orelse 0},
     );
 
@@ -76,59 +79,64 @@ fn handleConnection(io: Io, gpa: std.mem.Allocator, conn: Io.net.Stream) void {
             if (err == error.HttpConnectionClosing) break;
             return;
         };
-        // router only takes the request
         router(io, &request, alloc) catch |err| {
             std.debug.print("Routing error: {}\n", .{err});
         };
     }
 }
 
-fn router(io: Io, request: *std.http.Server.Request, arena: std.mem.Allocator) !void {
-    const path = request.head.target;
+fn router(io: Io, req: *std.http.Server.Request, arena: std.mem.Allocator) !void {
+    const path = req.head.target;
+    const http = HTTPRequest{
+        .io = io,
+        .req = req,
+        .arena = arena,
+    };
     if (std.mem.eql(u8, path, "/")) {
-        return index(io, request, arena);
-    } else if (std.mem.eql(u8, path[0..10], "/text-html")) {
-        return textHtml(io, request, arena);
-    } else if (std.mem.eql(u8, path[0..6], "/patch")) {
-        return patch(io, request, arena);
-    } else if (std.mem.eql(u8, path[0..5], "/code")) {
-        return code(io, request, arena);
+        return index(http);
+    } else if (match(path, "/text-html")) {
+        return textHtml(http);
+    } else if (match(path, "/patch")) {
+        return patch(http);
+    } else if (match(path, "/code")) {
+        return code(http);
     } else {
-        return request.respond("Not Found", .{ .status = .not_found });
+        return req.respond("Not Found", .{ .status = .not_found });
     }
 }
 
-fn index(_: Io, req: *std.http.Server.Request, _: std.mem.Allocator) !void {
+fn match(path: []const u8, pattern: []const u8) bool {
+    return (std.mem.eql(u8, path[0..pattern.len], pattern));
+}
+
+fn index(http: HTTPRequest) !void {
     const html = @embedFile("01_index.html");
-    return try req.respond(html, .{
+    return try http.req.respond(html, .{
         .extra_headers = &.{.{ .name = "content-type", .value = "text/html" }},
     });
 }
 
-fn textHtml(_: Io, req: *std.http.Server.Request, arena: std.mem.Allocator) !void {
+fn textHtml(http: HTTPRequest) !void {
     var t1 = try std.time.Timer.start();
     defer {
         std.debug.print("TextHTML elapsed {}(μs)\n", .{t1.read() / std.time.ns_per_ms});
     }
 
-    return try req.respond(try std.fmt.allocPrint(
-        arena,
+    return try http.req.respond(try std.fmt.allocPrint(http.arena,
         \\<p id="text-html">This is update number {d}</p>
-    ,
-        .{getCountAndIncrement()},
-    ), .{
+    , .{getCountAndIncrement()}), .{
         .extra_headers = &.{.{ .name = "content-type", .value = "text/html" }},
     });
 }
 
-fn patch(_: Io, req: *std.http.Server.Request, arena: std.mem.Allocator) !void {
+fn patch(http: HTTPRequest) !void {
     var t1 = try std.time.Timer.start();
     defer {
         std.debug.print("patchElements elapsed {}(μs)\n", .{t1.read() / std.time.ns_per_ms});
     }
 
     var buf: [1024]u8 = undefined;
-    var sse = try datastar.NewSSE(req, &buf, arena);
+    var sse = try datastar.NewSSE(http, &buf);
     defer sse.close();
 
     try sse.patchElementsFmt(
@@ -152,12 +160,12 @@ const snippets = [_][]const u8{
     @embedFile("snippets/code10.zig"),
 };
 
-fn code(_: Io, req: *std.http.Server.Request, arena: std.mem.Allocator) !void {
-    const path_only = std.mem.sliceTo(req.head.target, '?');
+fn code(http: HTTPRequest) !void {
+    const path_only = std.mem.sliceTo(http.req.head.target, '?');
     var path_iter = std.mem.tokenizeScalar(u8, path_only, '/');
     _ = path_iter.next();
     const snip = path_iter.next() orelse {
-        return req.respond("Missing ID", .{ .status = .bad_request });
+        return http.req.respond("Missing ID", .{ .status = .bad_request });
     };
     const snip_id = try std.fmt.parseInt(u8, snip, 10);
 
@@ -169,10 +177,10 @@ fn code(_: Io, req: *std.http.Server.Request, arena: std.mem.Allocator) !void {
     const data = snippets[snip_id - 1];
 
     var buf: [1024]u8 = undefined;
-    var sse = try datastar.NewSSE(req, &buf, arena);
+    var sse = try datastar.NewSSE(http, &buf);
     defer sse.close();
 
-    const selector = try std.fmt.allocPrint(arena, "#code-{s}", .{snip});
+    const selector = try std.fmt.allocPrint(http.arena, "#code-{s}", .{snip});
     var w = sse.patchElementsWriter(.{
         .selector = selector,
         .mode = .append,

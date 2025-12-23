@@ -45,21 +45,20 @@ pub const ExecuteScriptOptions = struct {
     retry_duration: ?i64 = null,
 };
 
-const SSEMode = enum {
-    batch,
-    sync,
+pub const SSEOptions = struct {
+    buffer_size: usize = 16 * 1024,
 };
 
-const SSEOptions = struct {
-    mode: SSEMode = .batch,
-    buffer_size: usize = 16 * 1024,
+pub const HTTPRequest = struct {
+    req: *std.http.Server.Request,
+    io: Io,
+    arena: std.mem.Allocator,
 };
 
 pub const SSE = struct {
     stream: *std.http.BodyWriter,
     output_buffer: std.Io.Writer.Allocating,
     msg: ?Message = null,
-    mode: SSEMode = .batch,
     buffer_size: usize = 16 * 1024,
     arena: ?std.mem.Allocator,
 
@@ -70,17 +69,12 @@ pub const SSE = struct {
 
     pub fn flush(self: *SSE) !void {
         if (self.msg) |*msg| try msg.end();
-        if (self.mode == .sync) {
-            // in sync mode, bit more work to do yet, as we are responsible
-            // for writing all the converted bytes out to the network
-            const data = self.output_buffer.written();
-            if (data.len == 0) return;
+        const data = self.output_buffer.written();
+        if (data.len == 0) return;
 
-            std.debug.print("writing this to the BodyWriter\n{s}\n\n", .{data});
-            try self.stream.writer.writeAll(data);
-            try self.stream.flush();
-            _ = self.output_buffer.writer.consume(data.len);
-        }
+        try self.stream.writer.writeAll(data);
+        try self.stream.flush();
+        _ = self.output_buffer.writer.consume(data.len);
     }
 
     /// close() is used for short lived SSE only
@@ -194,16 +188,12 @@ pub const SSE = struct {
     }
 };
 
-pub fn NewSSE(req: *std.http.Server.Request, buf: []u8, arena: std.mem.Allocator) !SSE {
-    return NewSSEOpt(req, buf, arena, .{});
+pub fn NewSSE(http: HTTPRequest, buf: []u8) !SSE {
+    return NewSSEOpt(http, buf, .{});
 }
 
-pub fn NewSSESync(req: *std.http.Server.Request, buf: []u8, arena: std.mem.Allocator) !SSE {
-    return NewSSEOpt(req, buf, arena, .{ .mode = .sync });
-}
-
-pub fn NewSSEOpt(req: *std.http.Server.Request, buf: []u8, arena: std.mem.Allocator, opt: SSEOptions) !SSE {
-    var res = try req.respondStreaming(
+pub fn NewSSEOpt(http: HTTPRequest, buf: []u8, opt: SSEOptions) !SSE {
+    var res = try http.req.respondStreaming(
         buf,
         .{ .respond_options = .{ .extra_headers = &.{
             .{ .name = "content-type", .value = "text/event-stream; charset=UTF-8" },
@@ -211,14 +201,13 @@ pub fn NewSSEOpt(req: *std.http.Server.Request, buf: []u8, arena: std.mem.Alloca
         } } },
     );
     const allocating_writer = blk: {
-        if (opt.mode == .sync or opt.buffer_size == 0) break :blk std.Io.Writer.Allocating.init(arena);
-        break :blk std.Io.Writer.Allocating.initCapacity(arena, opt.buffer_size) catch std.Io.Writer.Allocating.init(arena);
+        if (opt.buffer_size == 0) break :blk std.Io.Writer.Allocating.init(http.arena);
+        break :blk std.Io.Writer.Allocating.initCapacity(http.arena, opt.buffer_size) catch std.Io.Writer.Allocating.init(http.arena);
     };
     return SSE{
         .stream = &res,
-        .arena = arena,
+        .arena = http.arena,
         .output_buffer = allocating_writer,
-        .mode = opt.mode,
         .buffer_size = opt.buffer_size,
     };
 }
@@ -229,7 +218,6 @@ pub fn NewSSEFromStream(stream: *std.http.BodyWriter, allocator: std.mem.Allocat
         .stream = stream,
         .output_buffer = allocating_writer,
         .buffer_size = 0,
-        .mode = .sync,
     };
 }
 
