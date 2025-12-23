@@ -65,24 +65,18 @@ RAM size = peak RAM usage according to Activity Monitor, at the end of the SSE t
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Zig** | Plain HTML | 39,654 | 5.50ms | **5.61 GB** | 533,672 |
 | **Zig** | **Datastar SSE** 100k payload | **23,777** | **15.99ms** | 4.12 GB | 12.7 MB  |
-| **Zig** | **Datastar SSE** 20k payload | **72,756** | **4.26ms** | 1.73 GB | 12.7 MB  |
 | **Zig** | SSE % performance | |  | 73 % | |
 | | | | | | |
 | **Rust** | Plain HTML | 38,201 | 5.13ms | **5.41 GB** | 1,845,936 |
 | **Rust** | **Datastar SSE** 100k payload | **20,943** | **11.43ms** | 3.63 GB | 40.2 MB |
-| **Rust** | **Datastar SSE** 20k payload | **68,320** | **3.51** | 1.63 GB | 16.9 MB |
 | **Rust** | SSE % performance | |  | 67 % | |
 | | | | | | |
-| **Go** | Plain HTML | 30,484 | 8.76ms | 4.32 GB | 7,995,922 |
-| **Go** | Plain HTML (w/ Log) | 23,730 | 11.89ms | 3.36 GB | 7,995,922 |
+| **Go** | Plain HTML (no log)| 30,484 | 8.76ms | 4.32 GB | 7,995,922 |
+| **Go** | Plain HTML | 23,730 | 11.89ms | 3.36 GB | 7,995,922 |
 | **Go** | Datastar SSE 100k payload | 9,758 | 33.72ms | 1.69 GB | 43.8 MB |
-| **Go** | Datastar SSE 20k payload | 27,788 | 11.49ms | 678.12 MB | 28.3 MB |
 | **Go** | SSE % performance | |  | 50 % | |
 | | | | | | |
-| **Bun** | Plain HTML | 28,667 | 8.30ms | 4.06 GB | n/a |
-| **Bun** | Datastar SSE (20k - no log) | 20,828 | 11.44ms | 508.25 MB | 58.4 MB |
-| **Bun** | SSE % performance | |  | 12 % | |
-| | | | | | |
-| **Bun** | Plain HTML (w/ Log) | 12,664 | 18.81ms | 1.79 GB | n/a |
+| **Bun** | Plain HTML (no Log) | 28,667 | 8.30ms | 4.06 GB | n/a |
+| **Bun** | Plain HTML | 12,664 | 18.81ms | 1.79 GB | n/a |
 | **Bun** | Datastar SSE (100k w/ Log) | 3,733 | 63.7ms | 662.85 MB | 32.3 MB |
 | **Bun** | SSE % performance | |  | 36 % | |
