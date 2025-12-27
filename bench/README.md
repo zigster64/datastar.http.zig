@@ -66,7 +66,8 @@ RAM size = peak RAM usage according to Activity Monitor, at the end of the SSE t
 Note the Zig 0.16 Numbers are from the https://github.com/zigster64/datastar.zig SDK repo,
 which uses a much simpler HTTP server based on the current stdlib, and Io.Threaded implementation.
 
-Would expect the Io.Evented stdlib server to eventually be a bit better than this.
+Would expect the Io.Evented stdlib server to eventually be a bit better than this, when blasting 100k out 
+over the wire per request using kqueue instead of blocking writes. Maybe, see what happens when its done.
 
 | Language | Test Case | Requests/sec | Latency (Avg) | Transfer/sec | Binary/RAM Size |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -74,10 +75,9 @@ Would expect the Io.Evented stdlib server to eventually be a bit better than thi
 | **Zig** | **Datastar SSE** 100k payload | **23,777** | **15.99ms** | 4.12 GB | 12.7 MB  |
 | **Zig** | SSE % performance | |  | 73 % | |
 | | | | | | |
-| **Zig 0.16** | Plain HTML | 39,654 | 5.50ms | **5.61 GB** | 533,672 |
-| **Zig 0.16** | **Datastar SSE** 100k payload | **23,777** | **15.99ms** | 4.12 GB | 12.7 MB  |
-| **Zig 0.16** | **Datastar SSE** 20k payload | **72,756** | **4.26ms** | 1.73 GB | 12.7 MB  |
-| **Zig 0.16** | SSE % performance | |  | 73 % | |
+| **Zig 0.16** | Plain HTML | 39,698 | 3.70ms | **5.62 GB** | 487,976 |
+| **Zig 0.16** | **Datastar SSE** 100k payload | **20,620** | **12.51ms** | 3.57 GB | 22.0 MB  |
+| **Zig 0.16** | SSE % performance | |  | 63  % | |
 | | | | | | |
 | **Rust** | Plain HTML | 38,201 | 5.13ms | **5.41 GB** | 1,845,936 |
 | **Rust** | **Datastar SSE** 100k payload | **20,943** | **11.43ms** | 3.63 GB | 40.2 MB |
