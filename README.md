@@ -15,7 +15,11 @@ Versions :
 It uses the latest "writergate" changes for zig 0.15.2, and makes good use of the high speed buffered 
 interfaces. The SDK is very fast, and very lightweight.
 
-Example apps provided with
+For using Zig 0.16 - there is an (experimental) SDK that uses the new Io and stdlib HTTP server.
+
+https://github.com/zigster64/datastar.zig
+
+This SDK provides Example apps for Zig 0.15.2 with
 - http.zig
 - tokamak
 - (more to follow)
@@ -32,6 +36,9 @@ as they get ported.
 
 Once this lib is fully generic across multiple frameworks, I will rename it to `datastar.zig` to reflect that.
 
+Update: NewYearsDay 2027 :
+
+https://github.com/zigster64/datastar.zig
 
 # Audience and Scope
 
